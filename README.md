@@ -64,23 +64,5 @@ cd 26-2-1
 - 평가 지표: 추후 작성
 - 성능 비교, 결과 해석 및 한계: 추후 작성
 
-## 7. 참고 자료
-
-- [수업 및 프로젝트 안내](https://github.com/2026-2nd)
-- [지난 학기 1조 README 견본](https://github.com/2026-2nd/26-1-1/blob/main/README.md)
-- [지난 학기 4조 README 견본](https://github.com/2026-2nd/26-1-4/blob/main/README.md)
-
-팀원 정보와 역할 분담은 추후 작성합니다.
-
-## 8. AI 작업 및 협업 문서
-
-| 문서 | 용도 |
-| --- | --- |
-| [AGENTS.md](AGENTS.md) | Codex 등 AI 도구의 공통 작업 규칙 |
-| [CLAUDE.md](CLAUDE.md) | Claude Code에서 공통 규칙 불러오기 |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | 현재 상태, 권장 폴더 구조와 데이터 흐름 |
-| [협업 안내](docs/COLLABORATION.md) | GitHub 브랜치·커밋·PR·충돌 해결 |
-| [실험 절차](docs/ML_WORKFLOW.md) | 데이터 누수 방지·재현성·모델 비교·검증 |
-| [공통 기준](docs/CONTRACTS.md) | 데이터 스키마·분할·지표·실험 기록 합의 |
 
 현재는 문서만 준비되어 있으며 코드·데이터·자동 테스트는 아직 없습니다. 팀원은 협업 안내를, AI 도구는 AGENTS.md를 먼저 확인합니다.
