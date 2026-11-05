@@ -2,7 +2,7 @@
 
 ## 1. 현재 적용 범위
 
-대상 저장소는 `R-kain/26-2-1`, 기본 브랜치는 `main`, 공개 범위는 Private이다. 팀원 초대와 역할 배정은 아직 진행하지 않았다. 아래는 함께 작업할 때 사용할 기본 절차이며, 실제 담당자·검토자는 배정 후 기록한다.
+대상 저장소는 `2026-2nd/26-2-1`, 기본 브랜치는 `main`, 공개 범위는 Public이다. 팀원 접근 권한은 GitHub 설정에서 관리하며, 역할별 담당자는 아직 이 문서에 기록하지 않았다. 아래는 함께 작업할 때 사용할 기본 절차이며, 실제 담당자·검토자는 배정 후 기록한다.
 
 문서 규칙은 GitHub 설정을 자동으로 바꾸지 않는다. 현재 브랜치 보호·필수 리뷰·자동 테스트를 설정했다는 뜻이 아니다.
 
@@ -21,12 +21,12 @@
 
 `main`은 함께 사용할 수 있는 상태를 유지한다. 작업은 `docs/`, `data/`, `exp/`, `feat/`, `fix/` 중 목적에 맞는 접두어를 사용한 브랜치에서 수행한다. 브랜치 이름 예: `docs/update-run-guide`, `exp/compare-baselines`.
 
-처음 참여할 때 GitHub에서 Private 저장소의 초대를 수락하고 계정 인증을 마친다. 토큰을 URL·노트북·문서에 적지 않는다.
+공개 저장소는 누구나 읽을 수 있지만 수정·푸시에는 권한이 필요하다. 수정 권한을 초대받은 팀원은 GitHub에서 초대를 수락하고 계정 인증을 마친다. 토큰을 URL·노트북·문서에 적지 않는다.
 
 다음은 **깨끗한 작업 트리에서** 문서를 수정하는 예시다. 로컬에 변경이 있으면 먼저 보존하고, 이미 존재하는 브랜치 이름은 재사용 또는 새 이름 선택 여부를 확인한다.
 
 ```bash
-git clone https://github.com/R-kain/26-2-1.git
+git clone https://github.com/2026-2nd/26-2-1.git
 cd 26-2-1
 git status
 git fetch origin
@@ -94,4 +94,4 @@ AI가 제시한 코드·실험 수치·참고문헌은 팀원이 확인한다. �
 ## 8. 참고
 
 - [GitHub Flow](https://docs.github.com/en/get-started/using-github/github-flow)
-- [Private 저장소의 공동 작업자 초대](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/managing-repository-settings/inviting-collaborators-to-a-personal-repository)
+- [조직 저장소의 팀·사용자 접근 관리](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/managing-repository-settings/managing-teams-and-people-with-access-to-your-repository)
