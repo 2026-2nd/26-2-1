@@ -107,6 +107,22 @@ class ExtractZipsTest(unittest.TestCase):
             self.assertFalse((Path(d) / "escape.txt").exists())
 
 
+class ResumeTest(unittest.TestCase):
+    def test_filekeys_in_manifest_with_existing_file_are_skipped(self):
+        with tempfile.TemporaryDirectory() as d, mock.patch.dict(
+                os.environ, {"ML_TEAMWORK_DATA": d, "AIHUB_APIKEY": "test-key"}):
+            raw = Path(d) / "raw" / "aihub_71385"
+            (raw / "T").mkdir(parents=True)
+            (raw / "T" / "a.zip").write_bytes(b"x")
+            ad._append_manifest(raw, [
+                {"downloaded_at": "", "filekey": 1, "path": "T/a.zip", "size_bytes": 1, "sha256": ""},
+                {"downloaded_at": "", "filekey": 2, "path": "T/gone.zip", "size_bytes": 1, "sha256": ""}])
+            self.assertEqual(ad.downloaded_filekeys(raw), {1})
+            with mock.patch.object(ad, "_download_tar") as dl:
+                ad.download(CONFIG, [1], work_dir=Path(d) / "w")
+                dl.assert_not_called()
+
+
 class ApiKeyTest(unittest.TestCase):
     def test_missing_key_raises(self):
         with mock.patch.dict(os.environ, {"AIHUB_APIKEY": ""}):

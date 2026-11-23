@@ -189,6 +189,15 @@ def _append_manifest(raw: Path, rows: list[dict]) -> None:
         w.writerows(rows)
 
 
+def downloaded_filekeys(raw: Path) -> set[int]:
+    """MANIFEST.csv에 기록되어 있고 파일도 실제로 남아 있는 filekey."""
+    manifest = raw / MANIFEST_NAME
+    if not manifest.exists():
+        return set()
+    with open(manifest, encoding="utf-8") as f:
+        return {int(r["filekey"]) for r in csv.DictReader(f) if (raw / r["path"]).exists()}
+
+
 def download(config: dict, filekeys: list[int], work_dir: Path | None = None, force: bool = False) -> list[Path]:
     """filekey를 하나씩 받아 병합하고 zip을 raw 폴더로 옮긴 뒤 MANIFEST.csv에 크기·해시를 기록한다."""
     api_key = get_api_key()
@@ -196,8 +205,12 @@ def download(config: dict, filekeys: list[int], work_dir: Path | None = None, fo
     raw.mkdir(parents=True, exist_ok=True)
     work_root = Path(work_dir or tempfile.mkdtemp(prefix="aihub_"))
     saved: list[Path] = []
+    done = downloaded_filekeys(raw)
     for fk in filekeys:
         print(f"=== filekey {fk} ===")
+        if fk in done and not force:
+            print(f"  이미 받음 (MANIFEST.csv), 건너뜀")
+            continue
         work = work_root / str(fk)
         work.mkdir(parents=True, exist_ok=True)
         tar_path = work / "download.tar"
