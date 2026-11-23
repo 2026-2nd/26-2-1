@@ -1,7 +1,8 @@
 """AI Hub 데이터 다운로드·압축 해제 도구 (표준 라이브러리만 사용).
 
 AI Hub 공식 `aihubshell` v0.6 (https://api.aihub.or.kr/api/aihubshell.do)과 같은 API를
-호출한다. bash가 없는 Windows나 Colab의 Python 코드에서도 쓸 수 있다. 공식 셸이 쓰는
+호출한다. bash가 없는 Windows나 Colab의 Python 코드에서도 쓸 수 있다.
+AI Hub 서버는 이어받기(Range)를 지원하지 않아, 연결이 끊기면 그 파일을 처음부터 다시 받는다(최대 10번). 공식 셸이 쓰는
 엔드포인트가 바뀌면 `DOWN_URL`을 셸 스크립트에 맞춰 고친다.
 
 사용 예 (저장소 루트에서 실행):
@@ -21,6 +22,7 @@ import csv
 import datetime as _dt
 import fnmatch
 import hashlib
+import http.client
 import json
 import os
 import re
@@ -28,6 +30,7 @@ import shutil
 import sys
 import tarfile
 import tempfile
+import time
 import urllib.error
 import urllib.request
 import zipfile
@@ -98,36 +101,54 @@ def fetch_file_tree(dataset_key: str) -> str:
         raise AIHubError(f"파일 목록 조회 실패 HTTP {e.code}") from None
 
 
-def _download_tar(dataset_key: str, filekeys: list[int], api_key: str, dest: Path) -> None:
-    """공식 셸의 `curl -L -C - -H "apikey:..." "$DOWN_URL?fileSn=..."`과 같은 요청. 이어받기를 지원한다."""
-    url = DOWN_URL.format(dataset_key=dataset_key) + "?fileSn=" + ",".join(map(str, filekeys))
-    start = dest.stat().st_size if dest.exists() else 0
-    headers = {"apikey": api_key}
-    if start:
-        headers["Range"] = f"bytes={start}-"
-    req = urllib.request.Request(url, headers=headers)
+RETRIES = 10
+# 연결이 중간에 끊겼을 때 다시 시도할 오류 (HTTP 오류 응답은 제외)
+_TRANSIENT = (http.client.IncompleteRead, http.client.RemoteDisconnected, ConnectionError, TimeoutError,
+              urllib.error.URLError, OSError)
+
+
+def _download_once(url: str, api_key: str, dest: Path) -> None:
+    """공식 셸의 `curl -L -H "apikey:..." "$DOWN_URL?fileSn=..."`과 같은 요청.
+
+    AI Hub 서버는 Range(이어받기) 요청을 무시하고 항상 처음부터 보낸다 (2026-11-23 확인). 그래서 매번 새로 쓴다.
+    """
+    req = urllib.request.Request(url, headers={"apikey": api_key})
     try:
         resp = urllib.request.urlopen(req, timeout=120)
     except urllib.error.HTTPError as e:
         body = e.read().decode("utf-8", errors="replace").strip()
-        if e.code == 416 and start:  # 이미 끝까지 받은 상태
-            return
         hint = ""
         if "인증" in body or "권한" in body:
             hint = " → AI Hub에서 이 데이터셋의 다운로드 신청이 승인됐는지, API 키가 맞는지 확인하세요."
         raise AIHubError(f"다운로드 실패 HTTP {e.code}: {body}{hint}") from None
-    with resp:
-        mode = "ab" if (start and resp.status == 206) else "wb"
-        total = resp.headers.get("Content-Length")
-        total = int(total) + (start if mode == "ab" else 0) if total else None
-        done = start if mode == "ab" else 0
-        with open(dest, mode) as f:
-            while chunk := resp.read(CHUNK):
-                f.write(chunk)
-                done += len(chunk)
-                if total:
-                    print(f"\r  {done / 2**20:,.0f} / {total / 2**20:,.0f} MB", end="", flush=True)
-        print()
+    with resp, open(dest, "wb") as f:
+        done, last = 0, 0
+        while chunk := resp.read(CHUNK):
+            f.write(chunk)
+            done += len(chunk)
+            if done - last >= 256 * 2**20:   # 256MB마다 진행 상황 출력
+                print(f"  {done / 2**30:,.2f} GB", flush=True)
+                last = done
+
+
+def _download_tar(dataset_key: str, filekeys: list[int], api_key: str, dest: Path,
+                  retries: int = RETRIES, wait: float = 10.0) -> None:
+    """연결이 끊기면 처음부터 다시 받는다 (최대 retries회, 대기 시간은 점점 늘림)."""
+    url = DOWN_URL.format(dataset_key=dataset_key) + "?fileSn=" + ",".join(map(str, filekeys))
+    for attempt in range(1, retries + 1):
+        try:
+            _download_once(url, api_key, dest)
+            return
+        except AIHubError:
+            raise
+        except _TRANSIENT as e:
+            size = dest.stat().st_size / 2**20 if dest.exists() else 0
+            if attempt == retries:
+                raise AIHubError(f"연결이 {retries}번 끊겨 중단했습니다 (마지막 오류: {e!r})") from None
+            delay = min(wait * 2 ** (attempt - 1), 300)
+            print(f"  ⚠️ 연결 끊김 ({size:,.0f} MB에서, {type(e).__name__}). {delay:.0f}초 후 처음부터 다시 받습니다 "
+                  f"({attempt}/{retries - 1})", flush=True)
+            time.sleep(delay)
 
 
 # ── 압축 처리 ────────────────────────────────────────────────────────

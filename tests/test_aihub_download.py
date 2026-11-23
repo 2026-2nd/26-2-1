@@ -123,6 +123,35 @@ class ResumeTest(unittest.TestCase):
                 dl.assert_not_called()
 
 
+class RetryTest(unittest.TestCase):
+    def test_dropped_connection_is_retried_from_scratch(self):
+        import http.client
+        calls = []
+
+        def flaky(url, key, dest):
+            calls.append(1)
+            if len(calls) < 3:
+                raise http.client.IncompleteRead(b"x")
+            dest.write_bytes(b"done")
+
+        with tempfile.TemporaryDirectory() as d, mock.patch.object(ad, "_download_once", flaky):
+            dest = Path(d) / "download.tar"
+            ad._download_tar("71385", [1], "k", dest, retries=5, wait=0)
+            self.assertEqual(len(calls), 3)
+            self.assertEqual(dest.read_bytes(), b"done")
+
+    def test_gives_up_after_retries_and_auth_errors_are_not_retried(self):
+        import http.client
+        with mock.patch.object(ad, "_download_once", side_effect=http.client.IncompleteRead(b"")) as m:
+            with self.assertRaises(ad.AIHubError):
+                ad._download_tar("71385", [1], "k", Path("unused"), retries=3, wait=0)
+            self.assertEqual(m.call_count, 3)
+        with mock.patch.object(ad, "_download_once", side_effect=ad.AIHubError("인증실패")) as m:
+            with self.assertRaises(ad.AIHubError):
+                ad._download_tar("71385", [1], "k", Path("unused"), retries=3, wait=0)
+            self.assertEqual(m.call_count, 1)
+
+
 class ApiKeyTest(unittest.TestCase):
     def test_missing_key_raises(self):
         with mock.patch.dict(os.environ, {"AIHUB_APIKEY": ""}):
