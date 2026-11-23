@@ -1,0 +1,28 @@
+# 데이터·모델·결과물 (원본은 AI Hub 약관상 공개 저장소에 올리지 않음 — docs/DATA_SOURCES.md)
+data/
+models/
+outputs/
+*.zip
+*.tar
+*.part[0-9]*
+*.irx*
+# AI Hub 다운로드 프로그램이 저장소 루트에 만드는 데이터 폴더 (예: 307.생활폐기물 데이터 활용ㆍ환류/)
+/[0-9][0-9][0-9].*/
+
+# 비밀키
+.env
+*.key
+secrets*
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.ipynb_checkpoints/
+
+# OS·편집기
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
