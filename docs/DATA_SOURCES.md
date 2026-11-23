@@ -76,7 +76,7 @@ AI Hub가 이 데이터셋용으로 정해 둔 표기 문구는 찾지 못했다
 | --- | --- | --- | --- | --- | --- |
 | (미실행) | | | | | |
 
-다운로드 방법: Drive의 `ML_TeamWork/aihub_download.ipynb` (AI Hub `aihubshell` v0.6 사용).
+다운로드 방법: `python -m src.aihub_download download --preset ...` (AI Hub `aihubshell` v0.6과 같은 API). AI Hub는 해외 IP의 다운로드를 막기 때문에(2026-11-23 Colab에서 확인) 국내 PC에서 실행하고 Drive에 저장한다. 연결이 자주 끊기고 이어받기가 되지 않으며, 연결당 속도가 약 0.2~0.3MB/s로 제한되는 것으로 보인다.
 
 ## 2. 다른 후보 데이터셋
 
