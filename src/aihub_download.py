@@ -81,11 +81,21 @@ def resolve_filekeys(config: dict, presets: list[str], filekeys: list[str]) -> l
     return ordered
 
 
+_KEY_RE = re.compile(r"[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}")
+
+
 def get_api_key() -> str:
-    key = os.environ.get("AIHUB_APIKEY", "").strip()
-    if not key:
+    """AIHUB_APIKEY에서 키를 꺼낸다. 앞뒤에 '키:'나 한글 등이 섞여 있으면 키 형식 부분만 쓴다."""
+    raw = os.environ.get("AIHUB_APIKEY", "").strip()
+    if not raw:
         raise AIHubError("환경변수 AIHUB_APIKEY가 없습니다. Colab은 Secrets에, 로컬은 환경변수에 등록하세요.")
-    return key
+    m = _KEY_RE.search(raw)
+    if m:
+        return m.group(0)
+    if not raw.isascii():
+        raise AIHubError("API 키에 한글 등 영문·숫자가 아닌 문자가 들어 있습니다. 한/영 키를 영문으로 두고 "
+                         "키(예: XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX)만 다시 붙여 넣으세요.")
+    return raw
 
 
 # ── API 호출 ─────────────────────────────────────────────────────────

@@ -153,6 +153,17 @@ class RetryTest(unittest.TestCase):
 
 
 class ApiKeyTest(unittest.TestCase):
+    def test_key_is_extracted_from_surrounding_text(self):
+        key = "ABCDEF01-2345-6789-ABCD-EF0123456789"
+        for raw in (key, f"  {key}\n", f"키: {key}", f"ㅇㅇㅇ{key}"):
+            with mock.patch.dict(os.environ, {"AIHUB_APIKEY": raw}):
+                self.assertEqual(ad.get_api_key(), key)
+
+    def test_non_ascii_key_gives_clear_error(self):
+        with mock.patch.dict(os.environ, {"AIHUB_APIKEY": "ㅇㅇㅇ1234"}):
+            with self.assertRaisesRegex(ad.AIHubError, "한글"):
+                ad.get_api_key()
+
     def test_missing_key_raises(self):
         with mock.patch.dict(os.environ, {"AIHUB_APIKEY": ""}):
             with self.assertRaises(ad.AIHubError):
