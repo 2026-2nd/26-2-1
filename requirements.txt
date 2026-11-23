@@ -1,0 +1,10 @@
+# 2026-11-23 로컬(Windows 11, Python 3.12.10, CPU)에서 설치·테스트한 버전.
+# torch·torchvision은 Colab에 GPU용으로 미리 설치돼 있어 여기서 고정하지 않는다.
+# 로컬 CPU 설치: pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+numpy==2.5.5
+pandas==3.1.1
+scikit-learn==1.9.1
+opencv-python-headless==5.1.0.95
+scikit-image==0.26.0
+matplotlib==3.11.2
+pillow==13.0.0

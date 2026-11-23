@@ -101,7 +101,30 @@ git clone https://github.com/2026-2nd/26-2-1.git
 cd 26-2-1
 ```
 
-패키지 설치·데이터 준비·학습·추론 명령은 코드가 추가되면 실제 실행을 확인한 뒤 안내합니다. **현재 실행 가능한 모델 코드는 없습니다.**
+### 모델 파이프라인 (기획서 기준: 재활용 / 일반쓰레기 / 별도배출 판정)
+
+Colab에서 [`notebooks/00_aihub_download.ipynb`](notebooks/00_aihub_download.ipynb)로 데이터를 받은 뒤 [`notebooks/01_pipeline_colab.ipynb`](notebooks/01_pipeline_colab.ipynb)를 위에서부터 실행합니다. 같은 단계를 명령으로 실행하면 다음과 같습니다.
+
+```bash
+python -m src.dataset index                        # 라벨 zip → objects.csv (박스 1개 = 1행)
+python -m src.dataset build --per-code 1000        # 세부 라벨별 추출 → 수집방법·촬영일 그룹 분할(70:15:15) → 224×224 crop
+python -m src.extract_features --kind hand         # 색상·HOG 등 수작업 특징
+python -m src.extract_features --kind resnet18     # 사전학습 ResNet18 512차원
+python -m src.train_classical --features hand      # Dummy·로지스틱·SVM·랜덤포레스트 + 보정 + τ (val)
+python -m src.train_classical --features resnet18
+python -m src.finetune --epochs 8                  # ResNet18 layer4+fc 미세조정 (GPU 권장)
+# 설정을 확정한 뒤에만: 위 학습 명령에 --final 을 붙여 test 를 한 번 평가
+```
+
+| 파일 | 역할 |
+| --- | --- |
+| `configs/labels_71385.json` | 29개 세부 라벨 → 판정·이유·품목 대응표 (기획서 6장) |
+| `src/dataset.py` | 라벨 색인, 표본 추출, 그룹 분할, crop, 분할 간 중복(dHash) 제거 |
+| `src/features.py`, `src/extract_features.py` | 수작업 특징(색상 33 + 질감·형태 339), ResNet18 특징 |
+| `src/train_classical.py`, `src/finetune.py` | 모델 학습, 확률 보정(Platt / temperature), τ 선택 |
+| `src/evaluate.py` | 오안내율·Macro-F1·건전지 재현율·품목별 오염 판별 F1·ECE, 실험 기록 |
+
+결과는 `reports/experiments/<run-id>/`(record.json·그림)에, 모델 파일은 Drive의 `ML_TeamWork/models/`에 저장됩니다. **아직 정식 실험 결과는 없습니다.** 2026-11-23에 일부 데이터(실내형분류기 B2·B9)로 코드가 끝까지 실행되는지만 확인했습니다.
 
 ## 6. 모델 및 실험 계획
 
