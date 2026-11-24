@@ -6,13 +6,15 @@ AI Hub 서버는 이어받기(Range)를 지원하지 않아, 연결이 끊기면
 엔드포인트가 바뀌면 `DOWN_URL`을 셸 스크립트에 맞춰 고친다.
 
 사용 예 (저장소 루트에서 실행):
-    python -m src.aihub_download list
-    python -m src.aihub_download download --preset smoke_test
-    python -m src.aihub_download download --filekey 514447,514448
-    python -m src.aihub_download extract --pattern "*실내형분류기*" --dest /content/data/aihub_71385
+    python -m src.preprocess.aihub_download list
+    python -m src.preprocess.aihub_download download --preset smoke_test
+    python -m src.preprocess.aihub_download download --filekey 514447,514448
+    python -m src.preprocess.aihub_download extract --pattern "*실내형분류기*" --dest <풀 폴더>
+
+AI Hub는 해외 IP(Colab 포함)의 다운로드를 막으므로 다운로드는 국내 PC에서 실행한다.
 
 API 키는 환경변수 `AIHUB_APIKEY`로만 받는다. 코드·노트북·커밋에 키를 적지 않는다.
-데이터 위치는 환경변수 `ML_TEAMWORK_DATA`로 정하고, 없으면 저장소의 `data/`를 쓴다.
+데이터 위치는 src/common/paths.py의 data_dir()를 따른다 (Drive에 받으려면 ML_TEAMWORK_DIR="G:/내 드라이브/ML_TeamWork" 처럼 지정).
 이용 조건은 docs/DATA_SOURCES.md를 따른다.
 """
 from __future__ import annotations
@@ -36,12 +38,13 @@ import urllib.request
 import zipfile
 from pathlib import Path
 
+from src.common import paths
+
 BASE_URL = "https://api.aihub.or.kr"
 DOWN_URL = BASE_URL + "/down/0.6/{dataset_key}.do"
 INFO_URL = BASE_URL + "/info/{dataset_key}.do"
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_CONFIG = REPO_ROOT / "configs" / "aihub_71385.json"
+DEFAULT_CONFIG = paths.configs_dir() / "aihub_71385.json"
 MANIFEST_NAME = "MANIFEST.csv"
 MANIFEST_FIELDS = ["downloaded_at", "filekey", "path", "size_bytes", "sha256"]
 CHUNK = 1024 * 1024
@@ -58,7 +61,7 @@ def load_config(path: Path = DEFAULT_CONFIG) -> dict:
 
 
 def data_root() -> Path:
-    return Path(os.environ.get("ML_TEAMWORK_DATA") or REPO_ROOT / "data")
+    return paths.data_dir()
 
 
 def raw_dir(config: dict) -> Path:

@@ -1,97 +1,174 @@
-# GitHub 협업과 AI 작업 안내
+# 협업 규칙 — 브랜치 · 커밋 · PR · AI 에이전트
 
-## 1. 현재 적용 범위
+Git으로 팀 프로젝트를 처음 하는 팀원을 위한 규칙이다. Colab·Drive·GitHub·내 PC 연결은 [연결 튜토리얼](SETUP_GUIDE.md)을 먼저 따라 한다.
 
-대상 저장소는 `2026-2nd/26-2-1`, 기본 브랜치는 `main`, 공개 범위는 Public이다. 팀원 접근 권한은 GitHub 설정에서 관리하며, 역할별 담당자는 아직 이 문서에 기록하지 않았다. 아래는 함께 작업할 때 사용할 기본 절차이며, 실제 담당자·검토자는 배정 후 기록한다.
+대상 저장소는 `2026-2nd/26-2-1`(Public), 기본 브랜치는 `main`이다. 이 문서는 GitHub 설정(브랜치 보호·필수 리뷰 등)을 자동으로 바꾸지 않는다. 담당자는 아직 정하지 않았다.
 
-문서 규칙은 GitHub 설정을 자동으로 바꾸지 않는다. 현재 브랜치 보호·필수 리뷰·자동 테스트를 설정했다는 뜻이 아니다.
+## 1. 한눈에 보는 규칙
 
-## 2. 작업을 나누는 단위
+1. **`main`은 모두가 쓰는 완성본이다. 직접 고치지 않고 PR로만 합친다.**
+2. **새 모델 = 새 브랜치.** KNN을 추가하면 반드시 `model/knn`을 새로 만든다.
+3. **그 모델의 수정은 그 브랜치 안에서만.** KNN을 고칠 때는 언제나 `model/knn`에서 한다. 다른 모델 브랜치에서 KNN 파일을 고치지 않는다.
+4. **브랜치를 만들기 전에 목록을 확인한다.** 같은 모델·작업의 브랜치가 있으면 새로 만들지 않고 그 브랜치를 쓴다.
+5. **데이터·모델 파일·토큰은 Git에 올리지 않는다.** 데이터·모델은 Drive, 토큰은 Secrets.
 
-| 영역 | 주로 다룰 파일 | 담당자 |
+## 2. 브랜치 규칙
+
+### 2-1. 이름: `<종류>/<이름>`
+
+`/` 뒤에는 영어 소문자·숫자·`-`·`_`만 쓴다. Colab 도우미(`colab.setup`, `colab.push`)는 이 형식이 아니면 멈춘다.
+
+| 종류 | 언제 | 예 | 수명 |
+| --- | --- | --- | --- |
+| `model/` | 모델 하나 | `model/knn`, `model/svm`, `model/cnn` | **모델마다 하나, 계속 사용** |
+| `preprocess/` | 전처리 작업 하나 | `preprocess/crop`, `preprocess/color-features` | 작업마다 하나, 계속 사용 |
+| `setup/` | Colab·Drive·Git 연결, 환경, 공통 코드(`src/common/`) | `setup/colab-drive-git` | 병합 후 삭제 |
+| `docs/` | 문서만 수정 | `docs/setup-guide` | 병합 후 삭제 |
+| `fix/` | 이미 `main`에 있는 코드의 오류 수정 | `fix/paths-windows` | 병합 후 삭제 |
+
+`junhyuk-test`, `new`, `final2`처럼 개인 이름이나 의미 없는 이름의 브랜치는 만들지 않는다.
+
+### 2-2. 모델 브랜치가 다룰 수 있는 파일
+
+`model/knn` 브랜치에서 고치는 파일은 다음뿐이다.
+
+```text
+notebooks/2_models/knn*.ipynb
+src/models/knn.py           (필요하면 src/models/knn/ 폴더)
+reports/experiments/*_knn/  (실험 기록)
+```
+
+다른 모델 파일, 전처리 코드, 공통 코드(`src/common/`), 문서를 고쳐야 하면 **그 일에 맞는 브랜치**(`preprocess/...`, `setup/...`, `docs/...`, `fix/...`)를 따로 만든다. 그래야 PR 하나가 한 가지 일만 담고, 모델끼리 충돌하지 않는다.
+
+### 2-3. 모델 브랜치의 흐름
+
+```text
+main ──●──────────────●────────────────●──────▶
+        \            ↑ PR #1 병합       ↑ PR #2 병합
+         \ model/knn  │                 │
+          ●──●──●─────┘──●──●───────────┘──●──▶  (KNN 작업은 계속 여기서)
+          첫 버전         k 값 튜닝            ...
+```
+
+- 첫 버전이 되면 PR을 열어 `main`에 합친다. **병합 후에도 `model/knn` 브랜치는 지우지 않는다.** GitHub의 'Delete branch' 버튼은 누르지 않는다.
+- 이후 KNN 수정도 같은 `model/knn`에서 하고, 다시 PR을 연다.
+- 다른 브랜치에서 `main`이 바뀌어 내 브랜치가 뒤처지면 PR 화면의 **Update branch** 버튼으로 `main`의 변경을 받는다. 로컬에서는 `git merge origin/main`.
+
+### 2-4. 브랜치 목록 확인
+
+- Colab: [연결 확인 노트북](../notebooks/0_setup/check_connection.ipynb)의 `colab.branches()`
+- GitHub: 저장소 → **Branches**
+- 로컬: `git fetch --prune origin` 후 `git branch -r`
+
+## 3. 작업 순서
+
+### 3-1. Colab에서 (권장)
+
+[연결 튜토리얼 5절](SETUP_GUIDE.md#5-colab에서-일하는-법-매번)대로 한다. 요약하면 이렇다.
+
+| 상황 | 첫 셀 | 그다음 |
 | --- | --- | --- |
-| 데이터 조사·전처리 | 데이터 안내, 전처리 코드·노트북 | 미정 |
-| 모델·실험 | 학습 코드·설정·실험 기록 | 미정 |
-| 평가·시각화·보고서 | 평가 코드·그림·보고서 | 미정 |
-| 공통 문서·환경 | README, AI 지침, 의존성 | 작업별 조율 |
+| 새 모델 시작 | `BRANCH = "model/knn"`, `NEW_BRANCH = True` (템플릿에서) | 작업 → 마지막 셀 `colab.push(...)` |
+| 이어서 작업 | GitHub 탭에서 `model/knn` 브랜치의 노트북을 열고 `NEW_BRANCH = False` | 작업 → 마지막 셀 |
+| 코드 보기만 | `BRANCH = "main"` | 올리지 않음 |
 
-역할은 파일을 영구적으로 잠그는 규칙이 아니다. 여러 사람이 같은 노트북이나 설정을 동시에 고치지 않도록 Issue 또는 PR에 작업 파일과 목적을 남긴다. AI에게도 같은 범위를 전달한다.
+### 3-2. 내 PC에서
 
-## 3. 브랜치와 커밋
-
-`main`은 함께 사용할 수 있는 상태를 유지한다. 작업은 `docs/`, `data/`, `exp/`, `feat/`, `fix/` 중 목적에 맞는 접두어를 사용한 브랜치에서 수행한다. 브랜치 이름 예: `docs/update-run-guide`, `exp/compare-baselines`.
-
-공개 저장소는 누구나 읽을 수 있지만 수정·푸시에는 권한이 필요하다. 수정 권한을 초대받은 팀원은 GitHub에서 초대를 수락하고 계정 인증을 마친다. 토큰을 URL·노트북·문서에 적지 않는다.
-
-다음은 **깨끗한 작업 트리에서** 문서를 수정하는 예시다. 로컬에 변경이 있으면 먼저 보존하고, 이미 존재하는 브랜치 이름은 재사용 또는 새 이름 선택 여부를 확인한다.
+처음 한 번 [연결 튜토리얼 6절](SETUP_GUIDE.md#6-내-pc로컬-폴더-연결-선택)로 저장소를 받는다. 작업할 때마다:
 
 ```bash
-git clone https://github.com/2026-2nd/26-2-1.git
-cd 26-2-1
-git status
-git fetch origin
+git status                       # 고치고 안 올린 파일이 없는지 확인
+git fetch --prune origin
+
+# (A) 새 모델 시작: main에서 새 브랜치
 git switch main
-git pull --ff-only origin main
-git switch -c docs/update-run-guide
+git pull --ff-only
+git switch -c model/knn
+
+# (B) 이미 있는 브랜치로 이어서
+git switch model/knn
+git pull --ff-only
 ```
 
-문서를 수정한 뒤 등록할 파일을 직접 선택한다.
+작업 후 올리기:
 
 ```bash
-git diff
-git add docs/COLLABORATION.md
-git diff --cached
-git commit -m "docs: 협업 절차 보완"
-git push -u origin docs/update-run-guide
+git status                       # 바뀐 파일 확인
+git add src/models/knn.py notebooks/2_models/knn.ipynb    # 파일을 직접 골라 담기
+git diff --cached                # 담긴 내용 확인
+git commit -m "knn: k=1~15 비교 추가"
+git push -u origin model/knn     # 처음 한 번 -u, 이후에는 git push
 ```
 
-`git add .`로 데이터·모델·비밀키가 함께 들어가지 않도록 주의한다. 커밋은 ‘무엇을 왜 바꿨는지’가 드러나게 작성한다. 실험 성능은 실제 기록이 있을 때만 적는다.
+`git add .`는 데이터·모델 파일이 함께 들어갈 수 있어 쓰지 않는다.
 
-## 4. PR과 병합
+### 3-3. 커밋 메시지
 
-1. GitHub의 Pull requests에서 작업 브랜치 → `main`으로 PR을 만든다.
-2. 해결하려는 문제, 변경 내용, 검증 방법·결과, 미검증 항목을 적는다.
-3. 실험 변경이면 실행 ID, 데이터·분할 버전, 설정, 결과 위치를 연결한다. 공통 기준을 바꿨으면 기존 결과와 비교 가능한지도 적는다.
-4. 팀원이 참여한 뒤에는 관련 팀원에게 검토받는 것을 기본으로 한다. 초기 설정을 혼자 진행하는 경우에는 자체 점검 내역을 남긴다. AI가 작성했다는 사실은 사람의 검토를 대신하지 않는다.
-5. 충돌과 필요한 검증을 해결한 뒤 합의된 방식으로 병합한다. 병합 권한이 없으면 PR 링크와 남은 작업을 전달한다.
+`<대상>: <무엇을 왜>` 형식으로 짧게 쓴다.
 
-간단한 PR 본문 틀:
-
-```markdown
-## 문제와 변경
-- 목적:
-- 변경 파일 및 공통 기준에 미치는 영향:
-
-## 확인
-- 실행 또는 점검:
-- 결과 및 미검증 이유:
-- 실험 ID/결과 경로 (해당 시):
+```text
+knn: 거리 가중치(weights=distance) 비교 추가
+crop: 상자 여백 10%로 변경 (작은 물건이 잘림)
+docs: 연결 튜토리얼에 토큰 승인 대기 해결 방법 추가
 ```
 
-## 5. 동시 작업과 충돌
+실험 수치는 실제로 실행한 결과가 있을 때만 적는다.
 
-- 사람별·목적별 브랜치를 사용한다. 여러 AI가 같은 작업 폴더나 노트북을 동시에 수정하지 않도록 범위를 정한다.
-- 노트북은 가능한 한 목적별 파일로 나눈다. 필요하면 번호와 짧은 설명으로 이름을 짓되, 현재 노트북이 존재하는 것으로 가정하지 않는다.
-- 노트북 충돌을 파일 전체 덮어쓰기로 해결하지 않는다. 양쪽 변경을 확인하고, 해결한 노트북은 재시작 후 위에서 아래로 실행한다. 민감한 출력·대형 출력은 제거하되 평가 증거는 실험 기록에 보존한다.
-- 공유 브랜치 갱신은 먼저 `git fetch origin` 후 변경을 확인한다. 충돌을 해결하지 못하면 파일과 충돌 의도를 정리한다. 다른 사람의 작업을 `reset --hard`, `clean`, 강제 푸시로 없애지 않는다.
+## 4. PR로 main에 합치기
 
-## 6. AI에게 맡길 때
+1. 브랜치를 올리면 `colab.push()` 출력이나 GitHub 상단 배너에 PR 링크가 나온다. 또는 저장소 → **Pull requests → New pull request** → base `main` ← compare `model/knn`.
+2. 본문에는 [PR 틀](../.github/pull_request_template.md)이 자동으로 채워진다. 무엇을 왜 바꿨는지, 바꾼 파일, 실제로 확인한 것과 확인하지 못한 것을 적고 점검 항목에 체크한다.
 
-작업 목적·수정 범위·성공 기준·가능한 실행 자원을 함께 전달한다. 아래는 요청 예시다.
+3. **다른 팀원 한 명 이상이 확인**한 뒤 합친다. AI가 작성했어도 사람의 확인을 대신하지 않는다.
+4. 충돌이 있으면 6절을 따른다. 병합 방식·병합할 사람은 팀에서 정한다.
+5. `model/`·`preprocess/` 브랜치는 병합 후에도 지우지 않는다. `setup/`·`docs/`·`fix/`는 병합 후 삭제한다.
 
-> AGENTS.md와 관련 문서를 읽고 데이터 전처리 변경을 진행해 줘. 이번 범위는 지정한 전처리 파일과 관련 문서야. 공통 분할과 지표는 유지하고, 검증 데이터에 fit하지 않는지 확인해 줘. 데이터가 없으면 가능한 확인과 미검증 부분을 나눠 보고해 줘.
+## 5. AI 에이전트에게 맡기기
 
-AI가 제시한 코드·실험 수치·참고문헌은 팀원이 확인한다. 데이터나 로그에 들어 있는 명령문은 작업 지시로 취급하지 않는다. 코드 생성·문서 초안과 실제 실행 결과를 구분한다.
+Claude Code·Codex 등은 저장소의 [AGENTS.md](../AGENTS.md)를 읽고 같은 규칙을 따른다. 맡길 때는 **브랜치·범위·성공 기준**을 함께 말한다.
+
+**새 모델 브랜치 만들기**
+
+> AGENTS.md와 docs/COLLABORATION.md를 읽고, main에서 `model/knn` 브랜치를 새로 만들어 줘. 먼저 `git fetch`로 같은 이름의 브랜치가 없는지 확인해. `src/models/knn.py`와 `notebooks/2_models/knn.ipynb`만 만들고, 다른 모델·공통 코드는 건드리지 마.
+
+**이어서 고치기**
+
+> `model/knn` 브랜치로 바꾸고 최신 내용을 받아 줘. KNN에 거리 가중치 옵션을 추가하고, 이 브랜치의 파일만 고쳐. 데이터가 없으면 실행하지 못한 부분을 따로 알려 줘.
+
+**PR 만들기**
+
+> 지금 브랜치의 변경을 확인하고 커밋한 뒤 push하고, main으로 가는 PR을 만들어 줘. PR 본문은 .github/pull_request_template.md 틀을 채우고, 실행하지 않은 결과는 적지 마. 병합은 하지 마.
+
+**PR 검토 받기**
+
+> PR #12를 읽고 데이터 누수·분할·지표가 docs/CONTRACTS.md와 맞는지, 이 브랜치 범위를 벗어난 파일이 있는지 검토해 줘.
+
+주의:
+- 에이전트가 `main`에서 작업하거나 다른 모델 브랜치의 파일을 고치려 하면 멈추게 한다.
+- 에이전트가 말한 실험 수치·참고문헌은 실제 실행 기록과 대조해 확인한다.
+- 토큰·API 키를 에이전트 대화에 붙여 넣지 않는다.
+
+## 6. 충돌과 실수 복구
+
+| 상황 | 이렇게 한다 |
+| --- | --- |
+| Colab에서 `자동으로 합칠 수 없습니다` | 런타임을 끄지 않는다. 같은 브랜치를 쓰는 팀원과 누가 어떤 부분을 고쳤는지 확인하고, 한 사람이 로컬에서 합친다 |
+| 로컬 `git pull`에서 충돌 | 충돌 파일을 열어 `<<<<<<<`·`=======`·`>>>>>>>` 사이의 양쪽 내용을 확인하고 합친 뒤 `git add` → `git commit`. 모르겠으면 `git merge --abort`로 되돌리고 팀원에게 묻는다 |
+| 노트북(.ipynb) 충돌 | 파일 전체를 한쪽으로 덮지 않는다. 양쪽 셀을 확인해 합치고, 재시작 후 위에서부터 실행해 본다 |
+| 실수로 `main`에 커밋함 (아직 push 전) | `git switch -c fix/<이름>`으로 그 커밋을 새 브랜치로 옮긴 뒤 팀원에게 알린다 |
+| 다른 모델 브랜치에서 작업해 버림 | 올리기 전에 알리고, 맞는 브랜치로 옮긴다 (필요하면 AI에게 "커밋을 `model/knn`으로 옮겨 줘") |
+| 토큰·키를 커밋함 | **즉시 GitHub에서 토큰을 삭제(Revoke)** 하고 팀장에게 알린다. 커밋을 지워도 이미 노출된 것으로 본다 |
+
+다른 사람의 작업을 `git reset --hard`, `git clean`, `git push --force`로 지우지 않는다.
 
 ## 7. 인수인계와 제출
 
-작업을 넘길 때 브랜치/PR, 수정 파일, 실제 실행 명령과 환경, 데이터 필요 위치, 검증 결과, 남은 문제를 기록한다. 비공개 데이터나 인증 정보를 기록에 붙이지 않는다.
+작업을 넘길 때 브랜치·PR 링크, 바꾼 파일, 실제 실행한 노트북과 환경(Colab GPU 종류 등), 필요한 데이터 위치(Drive 경로), 결과와 남은 문제를 PR이나 팀 대화방에 남긴다. 비공개 데이터나 인증 정보는 붙이지 않는다.
 
-제출 전에는 README의 실행 순서·환경·데이터 준비 안내를 새 환경에서 확인한다. 교수자에게 저장소 접근이 필요한지 확인하고, 공개 전환이나 초대는 사용자가 결정한다. 보관(Archive)은 프로젝트 종료 후 별도 결정한다.
-
-수업 일정은 [공식 안내](https://github.com/2026-2nd)를 확인한다. 현재 안내에는 지난 학기 날짜와 미정 날짜가 섞여 있으므로 이 문서에서 마감일을 확정하지 않는다.
+제출 전에는 README의 실행 순서를 새 Colab 런타임에서 처음부터 확인한다. 저장소 공개 전환·초대는 팀장이 결정한다. 수업 일정은 [공식 안내](https://github.com/2026-2nd)를 확인한다.
 
 ## 8. 참고
 
 - [GitHub Flow](https://docs.github.com/en/get-started/using-github/github-flow)
-- [조직 저장소의 팀·사용자 접근 관리](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/managing-repository-settings/managing-teams-and-people-with-access-to-your-repository)
+- [Fine-grained personal access token 만들기](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)
+- [Colab에서 GitHub 노트북 열기](https://colab.research.google.com/github/)

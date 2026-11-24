@@ -1,4 +1,4 @@
-"""src/aihub_download.py 단위 테스트 (네트워크 없이 실행).
+"""src/preprocess/aihub_download.py 단위 테스트 (네트워크 없이 실행).
 
 실행: python -m unittest discover -s tests -v
 """
@@ -11,7 +11,7 @@ import zipfile
 from pathlib import Path
 from unittest import mock
 
-from src import aihub_download as ad
+from src.preprocess import aihub_download as ad
 
 CONFIG = {
     "dataset_key": "71385",

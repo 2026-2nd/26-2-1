@@ -4,7 +4,9 @@
 
 아주대학교 2026년 2학기 **기계학습기초** 팀 프로젝트입니다. 단일 물건 사진에서 품목을 분류하고, 공식 분리배출 기준을 확인해 만든 규칙표와 연결하여 배출 방법을 안내하는 개념 증명(PoC) 모델을 목표로 합니다.
 
-**현재 단계: 아이디어 제안 및 데이터셋 선정 준비.** 아래 내용은 [프로젝트 제안서](Team1_proposal.pdf)를 바탕으로 정리한 계획입니다. 아직 학습 코드·데이터·모델·실험 결과는 등록되어 있지 않습니다.
+**현재 단계: 협업 환경 준비 완료, 전처리·모델 구현 시작 전.** Colab·Google Drive·GitHub 연결 코드와 노트북 템플릿만 있으며, 전처리·모델 코드와 실험 결과는 아직 없습니다. 아래 1·2·6절은 [프로젝트 제안서](Team1_proposal.pdf)를 바탕으로 정리한 계획입니다.
+
+> **처음 참여한다면** → [연결 튜토리얼](docs/SETUP_GUIDE.md)을 위에서부터 따라 한 뒤 [협업 규칙](docs/COLLABORATION.md)을 읽으세요.
 
 ## 1. 프로젝트 개요
 
@@ -56,75 +58,53 @@
 
 ## 3. 저장소 구성
 
-현재 등록된 파일은 다음과 같습니다.
-
 ```text
 26-2-1/
-├── README.md
-├── Team1_proposal.pdf
-├── AGENTS.md
-├── CLAUDE.md
-├── ARCHITECTURE.md
-└── docs/
-    ├── COLLABORATION.md
-    ├── CONTRACTS.md
-    └── ML_WORKFLOW.md
+├── README.md · AGENTS.md · CLAUDE.md · ARCHITECTURE.md · Team1_proposal.pdf
+├── docs/
+│   ├── SETUP_GUIDE.md        # 연결 튜토리얼: Colab·Drive·GitHub·내 PC
+│   ├── COLLABORATION.md      # 협업 규칙: 브랜치·커밋·PR·AI 에이전트
+│   ├── ML_WORKFLOW.md        # 실험 절차
+│   ├── CONTRACTS.md          # 데이터·분할·지표 공통 기준
+│   └── DATA_SOURCES.md       # 데이터 출처·이용 조건
+├── notebooks/
+│   ├── 0_setup/check_connection.ipynb            # 처음 한 번: 연결 확인
+│   ├── 1_preprocess/_template_preprocess.ipynb   # 전처리 템플릿 → preprocess/<작업명>
+│   └── 2_models/_template_model.ipynb            # 모델 템플릿 → model/<모델명>
+├── src/
+│   ├── common/      # paths.py(데이터·모델 위치), colab.py(Drive 연결·브랜치·GitHub 올리기)
+│   ├── preprocess/  # 전처리 코드 (현재: AI Hub 다운로드 도구)
+│   └── models/      # 모델 코드: 모델 하나 = 파일 하나 = 브랜치 하나
+├── configs/aihub_71385.json   # AI Hub에서 받을 파일 목록
+├── tests/                     # python -m unittest discover -s tests
+├── .github/pull_request_template.md
+└── requirements.txt
 ```
 
-구현을 시작하면서 필요한 폴더부터 추가할 예정입니다.
+데이터·모델 파일은 Git에 넣지 않고 Google Drive `내 드라이브/ML_TeamWork/`(`data/`, `models/`, `outputs/`)에 둡니다. 실험 기록(설정·점수·그래프)은 `reports/experiments/<날짜-시각>_<이름>/`에 남겨 Git에 올립니다.
 
-| 예정 폴더 | 용도 |
+## 4. 실행 환경
+
+| 항목 | 내용 |
 | --- | --- |
-| `data/` | 데이터 준비 안내 및 로컬 데이터 위치. 원본 데이터는 기본적으로 커밋하지 않음 |
-| `notebooks/` | EDA·모델 비교·결과 해석 노트북 |
-| `src/` | 재사용할 전처리·학습·평가 코드 |
-| `reports/` | 실험 기록·시각화·보고서 |
+| 주 실행 환경 | Google Colab (Python·패키지는 Colab 기본 설치본, GPU 선택) |
+| 데이터 저장 | Google Drive `ML_TeamWork/` |
+| 로컬(선택) | Python 3.12, `requirements.txt` (2026-11-23 Windows 11에서 설치 확인한 버전) |
+| 계획한 라이브러리 | scikit-learn, OpenCV, scikit-image, 선택 과제 PyTorch |
 
-## 4. 실행 환경 계획
-
-| 항목 | 제안서 기준 계획 |
-| --- | --- |
-| 언어 | Python 3 |
-| 기계학습 | scikit-learn |
-| 이미지 처리·특징 추출 | OpenCV, scikit-image |
-| 선택 과제 CNN | PyTorch, Colab |
-| 의존성 관리 | 구현 시 `requirements.txt`에 실제 확인한 버전 기록 |
-
-구체적인 Python·패키지 버전은 아직 확정하지 않았으며, `requirements.txt`도 아직 등록되어 있지 않습니다.
+실험에 쓴 실제 Python·패키지 버전은 실험 기록에 남깁니다.
 
 ## 5. 실행 방법
 
-현재는 제안서와 안내 문서만 확인할 수 있습니다. 저장소는 다음과 같이 복제합니다.
+1. [연결 튜토리얼](docs/SETUP_GUIDE.md) 1~4절: GitHub 초대 수락 → Drive 바로가기 → GitHub 토큰을 Colab Secrets에 등록 → [연결 확인 노트북](notebooks/0_setup/check_connection.ipynb) 실행
+2. 데이터: AI Hub는 해외 IP(Colab)의 다운로드를 막으므로 국내 PC에서 받아 Drive에 저장합니다 ([데이터 출처](docs/DATA_SOURCES.md), 튜토리얼 6-4절).
+3. 작업: 템플릿 노트북을 Colab에서 열고 첫 셀에 브랜치(`model/knn` 등)를 적어 실행 → 작업 → 마지막 셀로 GitHub에 올림 → PR ([협업 규칙](docs/COLLABORATION.md)).
+
+로컬에서 테스트:
 
 ```bash
-git clone https://github.com/2026-2nd/26-2-1.git
-cd 26-2-1
+python -m unittest discover -s tests -v
 ```
-
-### 모델 파이프라인 (기획서 기준: 재활용 / 일반쓰레기 / 별도배출 판정)
-
-Colab에서 [`notebooks/00_aihub_download.ipynb`](notebooks/00_aihub_download.ipynb)로 데이터를 받은 뒤 [`notebooks/01_pipeline_colab.ipynb`](notebooks/01_pipeline_colab.ipynb)를 위에서부터 실행합니다. 같은 단계를 명령으로 실행하면 다음과 같습니다.
-
-```bash
-python -m src.dataset index                        # 라벨 zip → objects.csv (박스 1개 = 1행)
-python -m src.dataset build --per-code 1000        # 세부 라벨별 추출 → 수집방법·촬영일 그룹 분할(70:15:15) → 224×224 crop
-python -m src.extract_features --kind hand         # 색상·HOG 등 수작업 특징
-python -m src.extract_features --kind resnet18     # 사전학습 ResNet18 512차원
-python -m src.train_classical --features hand      # Dummy·로지스틱·SVM·랜덤포레스트 + 보정 + τ (val)
-python -m src.train_classical --features resnet18
-python -m src.finetune --epochs 8                  # ResNet18 layer4+fc 미세조정 (GPU 권장)
-# 설정을 확정한 뒤에만: 위 학습 명령에 --final 을 붙여 test 를 한 번 평가
-```
-
-| 파일 | 역할 |
-| --- | --- |
-| `configs/labels_71385.json` | 29개 세부 라벨 → 판정·이유·품목 대응표 (기획서 6장) |
-| `src/dataset.py` | 라벨 색인, 표본 추출, 그룹 분할, crop, 분할 간 중복(dHash) 제거 |
-| `src/features.py`, `src/extract_features.py` | 수작업 특징(색상 33 + 질감·형태 339), ResNet18 특징 |
-| `src/train_classical.py`, `src/finetune.py` | 모델 학습, 확률 보정(Platt / temperature), τ 선택 |
-| `src/evaluate.py` | 오안내율·Macro-F1·건전지 재현율·품목별 오염 판별 F1·ECE, 실험 기록 |
-
-결과는 `reports/experiments/<run-id>/`(record.json·그림)에, 모델 파일은 Drive의 `ML_TeamWork/models/`에 저장됩니다. **아직 정식 실험 결과는 없습니다.** 2026-11-23에 일부 데이터(실내형분류기 B2·B9)로 코드가 끝까지 실행되는지만 확인했습니다.
 
 ## 6. 모델 및 실험 계획
 
