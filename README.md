@@ -69,10 +69,10 @@
 │   └── DATA_SOURCES.md       # 데이터 출처·이용 조건
 ├── notebooks/
 │   ├── 0_setup/check_connection.ipynb            # 처음 한 번: 연결 확인
-│   ├── 1_preprocess/_template_preprocess.ipynb   # 전처리 템플릿 → preprocess/<작업명>
+│   ├── 1_preprocess/_template_preprocess.ipynb   # 전처리 템플릿 → preprocess 브랜치
 │   └── 2_models/_template_model.ipynb            # 모델 템플릿 → model/<모델명>
 ├── src/
-│   ├── common/      # paths.py(데이터·모델 위치), colab.py(Drive 연결·브랜치·GitHub 올리기)
+│   ├── common/      # paths.py(위치), colab.py(Drive 연결·브랜치·GitHub 올리기), drive_sync.py(Drive code/ 사본)
 │   ├── preprocess/  # 전처리 코드 (현재: AI Hub 다운로드 도구)
 │   └── models/      # 모델 코드: 모델 하나 = 파일 하나 = 브랜치 하나
 ├── configs/aihub_71385.json   # AI Hub에서 받을 파일 목록
@@ -81,7 +81,9 @@
 └── requirements.txt
 ```
 
-데이터·모델 파일은 Git에 넣지 않고 Google Drive `내 드라이브/ML_TeamWork/`(`data/`, `models/`, `outputs/`)에 둡니다. 실험 기록(설정·점수·그래프)은 `reports/experiments/<날짜-시각>_<이름>/`에 남겨 Git에 올립니다.
+데이터·모델 파일은 Git에 넣지 않고 Google Drive `내 드라이브/ML_TeamWork/`(`data/`, `models/`, `outputs/`)에 둡니다. Drive의 `code/`에는 main 코드의 보기용 사본이 자동으로 맞춰집니다.
+
+브랜치는 `common`(문서·공통), `preprocess`(전처리), `model/<모델명>`(모델마다 하나) 세 종류이며, 새 브랜치는 새 모델을 추가할 때만 만듭니다 ([협업 규칙](docs/COLLABORATION.md)). 실험 기록(설정·점수·그래프)은 `reports/experiments/<날짜-시각>_<이름>/`에 남겨 Git에 올립니다.
 
 ## 4. 실행 환경
 
@@ -98,7 +100,7 @@
 
 1. [연결 튜토리얼](docs/SETUP_GUIDE.md) 1~4절: GitHub 초대 수락 → Drive 바로가기 → GitHub 토큰을 Colab Secrets에 등록 → [연결 확인 노트북](notebooks/0_setup/check_connection.ipynb) 실행
 2. 데이터: AI Hub는 해외 IP(Colab)의 다운로드를 막으므로 국내 PC에서 받아 Drive에 저장합니다 ([데이터 출처](docs/DATA_SOURCES.md), 튜토리얼 6-4절).
-3. 작업: 템플릿 노트북을 Colab에서 열고 첫 셀에 브랜치(`model/knn` 등)를 적어 실행 → 작업 → 마지막 셀로 GitHub에 올림 → PR ([협업 규칙](docs/COLLABORATION.md)).
+3. 작업: 템플릿 노트북을 Colab에서 열고 첫 셀에 브랜치(`preprocess`, `model/knn` 등)를 적어 실행 → 작업 → 마지막 셀로 GitHub에 올림 → PR ([협업 규칙](docs/COLLABORATION.md)).
 
 로컬에서 테스트:
 

@@ -28,12 +28,13 @@
 
 세부 절차와 예시는 [협업 규칙](docs/COLLABORATION.md)을 따른다. 에이전트가 반드시 지킬 것만 적는다.
 
-- 브랜치 이름은 `<종류>/<이름>`이다. 종류는 `model/`(모델 하나), `preprocess/`(전처리 작업 하나), `setup/`(연결·환경·`src/common/`), `docs/`(문서), `fix/`(main 코드 오류 수정). `/` 뒤는 영어 소문자·숫자·`-`·`_`.
-- **새 모델은 반드시 main에서 새 `model/<모델명>` 브랜치를 만든다.** 만들기 전에 `git fetch --prune origin`으로 같은 이름이 있는지 확인하고, 있으면 그 브랜치를 이어서 쓴다.
-- **모델의 수정은 그 모델의 브랜치에서만 한다.** `model/knn`에서는 `src/models/knn*`, `notebooks/2_models/knn*`, 그 모델의 `reports/experiments/*_knn/`만 고친다. 다른 모델·전처리·공통 코드·문서를 고쳐야 하면 작업을 멈추고 맞는 브랜치를 따로 만들지 사용자에게 확인한다.
+- 브랜치는 세 종류뿐이다 (2026-11-25 확정). `common`: 문서 추가·수정, 공통 코드(`src/common/`), 설정, 환경, 오류 수정을 모두 이 브랜치 하나에서. `preprocess`: 모든 전처리를 이 브랜치 하나에서. `model/<모델명>`: 모델마다 하나(영어 소문자·숫자·`-`·`_`). **이 밖의 브랜치(`docs/...`, `fix/...`, `setup/...`, 개인 브랜치 등)는 만들지 않는다.**
+- **새 브랜치는 새 모델을 추가할 때만** main에서 `model/<모델명>`으로 만든다. 만들기 전에 `git fetch --prune origin`으로 같은 이름이 있는지 확인하고, 있으면 그 브랜치를 이어서 쓴다.
+- 공용 브랜치(`common`, `preprocess`)는 여러 사람이 함께 쓴다. 작업 전에 `git pull`로 최신 내용을 받고, push 전에 `git pull --rebase`로 합친다. 남의 작업 파일은 고치지 않는다.
+- **기존 모델의 수정은 그 모델 이름의 브랜치에서 하고 그 브랜치로 PR을 연다.** `model/knn`에서는 `src/models/knn*`, `notebooks/2_models/knn*`, 그 모델의 `reports/experiments/*_knn/`만 고친다. 다른 모델·전처리·공통 코드·문서를 고쳐야 하면 작업을 멈추고 `common`이나 `preprocess`에서 따로 할지 사용자에게 확인한다.
 - 작업 전 현재 브랜치가 요청한 작업 종류와 맞는지 확인한다. `main`이거나 다른 모델의 브랜치면 바꾸기 전에 사용자에게 알린다.
-- `model/`·`preprocess/` 브랜치는 병합 후에도 삭제하지 않는다. `setup/`·`docs/`·`fix/`는 병합 후 삭제할 수 있다.
-- PR 본문은 `.github/pull_request_template.md`를 채운다. 실행하지 않은 결과를 적지 않는다.
+- 모든 브랜치는 병합 후에도 삭제하지 않고 계속 쓴다. 같은 브랜치에 열린 PR이 있으면 새 PR을 만들지 않는다.
+- PR 본문은 `.github/pull_request_template.md`를 채운다. 실행하지 않은 결과를 적지 않는다. 병합은 사용자가 요청할 때만 하며, 브랜치를 계속 쓰므로 squash가 아닌 merge commit으로 한다.
 - 노트북의 첫 셀(`colab.setup`)·마지막 셀(`colab.push`) 구조와 `src/common/`의 동작을 바꾸면 `tests/test_common.py`를 실행하고 [연결 튜토리얼](docs/SETUP_GUIDE.md)을 함께 고친다.
 
 ## 기계학습에서 반드시 지킬 것

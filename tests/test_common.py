@@ -1,4 +1,4 @@
-"""src/common (paths, colab) 단위 테스트. Colab·GitHub 없이 실행한다.
+"""src/common (paths, colab, drive_sync) 단위 테스트. Colab·GitHub 없이 실행한다.
 
 실행: python -m unittest discover -s tests -v
 
@@ -12,27 +12,30 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from src.common import colab, paths
+from src.common import colab, drive_sync, paths
 
 
 class BranchRuleTest(unittest.TestCase):
-    def test_good_names(self):
-        for name in ["model/knn", "preprocess/crop-224", "docs/colab-guide", "fix/path_bug", "setup/drive"]:
+    def test_allowed_branches(self):
+        for name in ["common", "preprocess", "model/knn", "model/random_forest", "model/cnn-3block"]:
             self.assertIsNone(colab.branch_problem(name), name)
 
-    def test_bad_names(self):
-        for name in ["main", "knn", "models/knn", "model/", "model/KNN", "model/knn/v2", "model/케이엔엔"]:
+    def test_other_branches_are_refused(self):
+        for name in ["main", "knn", "docs/readme", "preprocess/crop", "setup/drive", "fix/bug", "models/knn",
+                     "model/", "model/KNN", "model/knn/v2", "model/케이엔엔", "common/x"]:
             self.assertIsNotNone(colab.branch_problem(name), name)
 
-    def test_default_notebook_follows_branch_kind(self):
+    def test_default_notebook(self):
         self.assertEqual(colab.default_notebook("model/knn"), "notebooks/2_models/knn.ipynb")
-        self.assertEqual(colab.default_notebook("preprocess/crop"), "notebooks/1_preprocess/crop.ipynb")
-        self.assertIsNone(colab.default_notebook("docs/readme"))
+        self.assertIsNone(colab.default_notebook("preprocess"))   # 공용 브랜치는 NOTEBOOK을 직접 지정
+        self.assertIsNone(colab.default_notebook("common"))
 
     def test_notebook_path_rules(self):
-        self.assertIsNone(colab.notebook_problem("notebooks/2_models/knn.ipynb"))
+        for good in ["notebooks/2_models/knn.ipynb", "notebooks/1_preprocess/crop_224.ipynb"]:
+            self.assertIsNone(colab.notebook_problem(good), good)
         for bad in ["knn.ipynb", "notebooks/../x.ipynb", "/content/x.ipynb", "notebooks/2_models/knn.py",
-                    "notebooks/2_models/_template_model.ipynb"]:
+                    "notebooks/2_models/_template_model.ipynb", "notebooks/1_preprocess/작업명.ipynb",
+                    "notebooks/1_preprocess/Crop.ipynb"]:
             self.assertIsNotNone(colab.notebook_problem(bad), bad)
 
     def test_token_is_scrubbed(self):
@@ -158,6 +161,83 @@ class GitFlowTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SharedBranchFlowTest(GitFlowTest):
+    """common·preprocess는 이미 GitHub에 있는 공용 브랜치다. 새로 만들 수 없고 여러 사람이 함께 올린다."""
+
+    def setUp(self):
+        super().setUp()
+        for b in ("common", "preprocess"):
+            _run(self.seed, "push", "-q", "origin", f"main:refs/heads/{b}")
+
+    def test_shared_branch_cannot_be_created_again(self):
+        for b in ("common", "preprocess"):
+            with self.assertRaises(colab.ColabError):
+                colab._prepare_branch(b, new_branch=True)
+
+    def test_two_people_push_to_preprocess(self):
+        colab._prepare_branch("preprocess", new_branch=False)
+        (self.repo / "crop.py").write_text("crop\n", encoding="utf-8")
+        colab.push("crop 추가")
+        _run(self.seed, "fetch", "-q", "origin")
+        _run(self.seed, "switch", "-q", "preprocess")
+        _run(self.seed, "pull", "-q", "--ff-only")
+        (self.seed / "color.py").write_text("color\n", encoding="utf-8")
+        _run(self.seed, "add", "color.py")
+        _run(self.seed, "commit", "-q", "-m", "color 추가")
+        _run(self.seed, "push", "-q", "origin", "preprocess")
+        (self.repo / "crop.py").write_text("crop v2\n", encoding="utf-8")
+        colab.push("crop 수정")
+        log = _out(self.origin, "log", "--format=%s", "preprocess").splitlines()
+        self.assertEqual(log[:3], ["crop 수정", "color 추가", "crop 추가"])
+
+    def test_new_model_branch_only_with_flag(self):
+        with self.assertRaises(colab.ColabError):
+            colab._prepare_branch("model/knn", new_branch=False)   # 없는 모델 브랜치
+        colab._prepare_branch("model/knn", new_branch=True)
+        self.assertEqual(colab.current_branch(), "model/knn")
+
+
+class DriveSyncTest(unittest.TestCase):
+    def test_sync_tree_copies_changes_and_removes_old_files(self):
+        with tempfile.TemporaryDirectory() as s, tempfile.TemporaryDirectory() as d:
+            src, dest = Path(s), Path(d)
+            (src / "src").mkdir()
+            (src / "src" / "a.py").write_text("new", encoding="utf-8")
+            (src / "README.md").write_text("same", encoding="utf-8")
+            (dest / "README.md").write_text("same", encoding="utf-8")
+            (dest / "old").mkdir()
+            (dest / "old" / "gone.py").write_text("x", encoding="utf-8")
+            (dest / drive_sync.NOTICE).write_text("notice", encoding="utf-8")
+            (dest / "desktop.ini").write_text("x", encoding="utf-8")
+            r = drive_sync.sync_tree(src, dest)
+            self.assertEqual(r, {"copied": 1, "deleted": 1})
+            self.assertEqual((dest / "src" / "a.py").read_text(encoding="utf-8"), "new")
+            self.assertFalse((dest / "old").exists())
+            self.assertTrue((dest / drive_sync.NOTICE).exists())
+            self.assertEqual(drive_sync.sync_tree(src, dest), {"copied": 0, "deleted": 0})   # 두 번째는 할 일 없음
+
+    def test_refuses_without_drive_location(self):
+        with mock.patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("ML_TEAMWORK_DIR", None)
+            with mock.patch.object(paths, "COLAB_DRIVE_DIR", Path("/no/such/dir")):
+                with self.assertRaises(RuntimeError):
+                    drive_sync.sync(fetch=False)
+
+
+class DriveSyncFromGitTest(GitFlowTest):
+    def test_sync_exports_main_only(self):
+        colab._prepare_branch("model/knn", new_branch=True)
+        (self.repo / "knn.py").write_text("k\n", encoding="utf-8")
+        colab.push("knn")   # 모델 브랜치의 파일은 main 사본에 들어가지 않아야 한다
+        with tempfile.TemporaryDirectory() as drive, mock.patch.dict(os.environ, {"ML_TEAMWORK_DIR": drive}):
+            r = drive_sync.sync()
+            code = Path(drive) / "code"
+            self.assertEqual(r["dest"], code)
+            self.assertTrue((code / "README.md").is_file())
+            self.assertFalse((code / "knn.py").exists())
+            self.assertTrue((code / drive_sync.NOTICE).is_file())
 
 
 class GitignoreTest(unittest.TestCase):
