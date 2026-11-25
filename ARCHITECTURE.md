@@ -33,12 +33,12 @@
   docs/
   notebooks/
     0_setup/check_connection.ipynb      # 연결 확인 (처음 한 번)
-    1_preprocess/                       # 전처리: <작업명>.ipynb  ← preprocess/<작업명> 브랜치
+    1_preprocess/                       # 전처리: <작업명>.ipynb  ← 모두 preprocess 브랜치
       _template_preprocess.ipynb
-    2_models/                           # 모델: <모델명>.ipynb    ← model/<모델명> 브랜치
+    2_models/                           # 모델: <모델명>.ipynb    ← 모델마다 model/<모델명> 브랜치
       _template_model.ipynb
   src/
-    common/        # 모든 단계 공통 — paths.py(위치), colab.py(Drive·Git 연결)
+    common/        # 모든 단계 공통 — paths.py(위치), colab.py(Drive·Git 연결), drive_sync.py(Drive code/ 사본)
     preprocess/    # 전처리 코드 — <작업명>.py, aihub_download.py
     models/        # 모델 코드 — <모델명>.py (모델 하나 = 파일 하나)
   configs/         # 데이터·분할·모델 설정 (aihub_71385.json)
@@ -51,9 +51,10 @@ Google Drive  내 드라이브/ML_TeamWork/   (Git 제외)
   data/processed/  # 코드로 다시 만드는 전처리 결과
   models/          # 학습한 모델 파일
   outputs/         # 그 밖의 큰 출력물
+  code/            # main 코드의 보기용 사본 (src/common/drive_sync.py가 자동 갱신, 고치지 않음)
 ```
 
-노트북의 첫 셀은 `colab.setup(BRANCH, ...)`로 GitHub 코드를 `/content/26-2-1`에 받고 Drive를 연결하며, 마지막 셀은 `colab.push(MESSAGE)`로 노트북과 코드 변경을 그 브랜치에 올린다. Drive 안에 저장소를 복제해 두지 않는다. 웹앱·API·별도 실험 관리 서비스는 현재 필수 구성으로 정하지 않는다.
+노트북의 첫 셀은 `colab.setup(BRANCH, ...)`로 GitHub 코드를 `/content/26-2-1`에 받고 Drive를 연결하며, 마지막 셀은 `colab.push(MESSAGE)`로 노트북과 코드 변경을 그 브랜치에 올린다. 첫 셀은 Drive의 `code/`도 최신 main으로 맞춘다. Drive 안에 Git 저장소를 복제해 두지 않는다. 브랜치는 `common`·`preprocess`·`model/<모델명>` 세 종류다 ([협업 규칙](docs/COLLABORATION.md)). 웹앱·API·별도 실험 관리 서비스는 현재 필수 구성으로 정하지 않는다.
 
 ## 4. 데이터와 실행 흐름
 

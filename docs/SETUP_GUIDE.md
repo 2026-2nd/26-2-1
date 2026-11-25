@@ -21,6 +21,7 @@
               │   data/processed/  전처리 결과           │
               │   models/          학습한 모델 파일       │
               │   outputs/         그 밖의 큰 출력물      │
+              │   code/            main 코드 보기용 사본  │
               └────────────────────────────────────────┘
 ```
 
@@ -29,12 +30,13 @@
 | 코드(`src/`), 노트북(`notebooks/`), 문서, 설정(`configs/`) | GitHub | ✅ |
 | 실험 기록(`reports/experiments/`의 설정·점수·그래프) | GitHub | ✅ (데이터 사진이 들어간 그림은 ❌, [데이터 출처](DATA_SOURCES.md) 1번 규칙) |
 | 원본·전처리 데이터, 모델 파일, 큰 출력물 | Drive `ML_TeamWork/` | ❌ |
+| main 코드의 보기용 사본 | Drive `ML_TeamWork/code/` (자동 갱신, 고치지 않음) | — |
 | API 키·GitHub 토큰 | Colab 🔑 Secrets, 내 PC 환경변수 | ❌ 절대 안 됨 |
 
 핵심 원칙:
 - **코드의 기준은 GitHub 하나다.** Colab과 내 PC에 있는 것은 복사본이고, 고친 내용은 GitHub에 올려야 다른 사람에게 보인다.
-- **Drive에는 데이터만 둔다.** Drive 안에 Git 저장소를 복사해 두지 않는다 (동기화 충돌·`desktop.ini` 문제).
-- **`main`에는 직접 올리지 않는다.** 작업은 브랜치에서 하고 PR로 합친다.
+- **Drive의 `code/`는 보기용이다.** Colab 노트북 첫 셀을 실행할 때마다 GitHub `main`과 같아지므로 Drive에서도 최신 코드를 볼 수 있다. 하지만 여기서 고친 내용은 다음 갱신 때 덮이고 GitHub에도 올라가지 않는다. Drive 안에 Git 저장소를 따로 복사해 두지 않는다 (동기화 충돌·`desktop.ini` 문제).
+- **`main`에는 직접 올리지 않는다.** 작업은 정해진 브랜치(`common`, `preprocess`, `model/<모델명>`)에서 하고 PR로 합친다.
 
 ## 1. 준비물 (한 번)
 
@@ -101,9 +103,11 @@ Resource owner에 `2026-2nd`가 안 보이거나 토큰이 '승인 대기(pendin
 
 | 셀 | 하는 일 | 내가 고칠 것 |
 | --- | --- | --- |
-| **첫 셀 (준비)** | GitHub에서 코드를 받고, Drive를 연결하고, 브랜치를 준비 | `BRANCH`, `NEW_BRANCH` |
+| **첫 셀 (준비)** | GitHub에서 코드를 받고, Drive를 연결하고, 브랜치를 준비하고, Drive의 `code/`를 최신 main으로 맞춤 | `BRANCH`, `NEW_BRANCH`, `NOTEBOOK` |
 | 가운데 셀 | 그 단계의 작업 (전처리 또는 모델) | 코드 작성 |
 | **마지막 셀 (올리기)** | 노트북·고친 코드·실험 기록을 브랜치에 커밋하고 GitHub에 올림 | `MESSAGE` |
+
+어느 브랜치에서 일하는지는 [협업 규칙 1절](COLLABORATION.md#1-한눈에-보는-규칙-2026-11-25-확정)을 따른다. **새 브랜치는 새 모델을 추가할 때만** 만든다.
 
 ### 5-1. 새 모델 시작하기 (예: KNN)
 
@@ -117,25 +121,35 @@ Resource owner에 `2026-2nd`가 안 보이거나 토큰이 '승인 대기(pendin
 4. 작업한다. 여러 번 쓸 코드는 Colab 왼쪽 📁 파일 창에서 `/content/26-2-1/src/models/knn.py`를 만들어 옮긴다.
 5. 마지막 셀에 `MESSAGE = "knn: 첫 버전"`을 적고 실행한다. 이 노트북이 `notebooks/2_models/knn.ipynb`로, 코드와 함께 `model/knn` 브랜치에 올라간다.
 
-전처리도 같다. 템플릿은 [`notebooks/1_preprocess/_template_preprocess.ipynb`](../notebooks/1_preprocess/_template_preprocess.ipynb), 브랜치는 `preprocess/<작업명>`.
+### 5-2. 전처리 (모두 `preprocess` 브랜치 하나에서)
 
-### 5-2. 이어서 작업하기
+1. 처음이면 [`notebooks/1_preprocess/_template_preprocess.ipynb`](../notebooks/1_preprocess/_template_preprocess.ipynb)를, 이어서 하면 `preprocess` 브랜치의 내 노트북을 Colab에서 연다.
+2. 첫 셀:
+   ```python
+   BRANCH = "preprocess"
+   NEW_BRANCH = False
+   NOTEBOOK = "notebooks/1_preprocess/crop.ipynb"   # 내 작업 이름 (영어 소문자, 다른 사람과 겹치지 않게)
+   ```
+3. 작업 → 마지막 셀로 올린다. 다른 팀원도 같은 브랜치에 올리므로 **자기 작업 파일만** 고친다.
+
+### 5-3. 이어서 작업하기 (기존 모델 수정)
 
 1. Colab → **파일 → 노트북 열기 → GitHub** 탭 → `2026-2nd/26-2-1` → 브랜치 **`model/knn`** → `notebooks/2_models/knn.ipynb`.
 2. 첫 셀이 `BRANCH = "model/knn"`, `NEW_BRANCH = False`인지 확인하고 실행한다. 같은 브랜치에 팀원이 올린 최신 내용을 받아 온다.
 3. 작업 → 마지막 셀로 올린다. 같은 브랜치에 다른 사람이 먼저 올린 커밋이 있으면 자동으로 합친 뒤 올린다.
 
-### 5-3. main에 합치기 (PR)
+### 5-4. main에 합치기 (PR)
 
-`colab.push()`가 끝나면 PR 링크를 출력한다. 링크를 열어 내용을 적고 **Create pull request**. 자세한 절차는 [협업 규칙 4절](COLLABORATION.md#4-pr로-main에-합치기).
+`colab.push()`가 끝나면 PR 링크를 출력한다. 같은 브랜치에 열린 PR이 없을 때만 링크를 열어 내용을 적고 **Create pull request**. 열린 PR이 있으면 올린 커밋이 그 PR에 자동으로 추가된다. 자세한 절차는 [협업 규칙 4절](COLLABORATION.md#4-pr로-main에-합치기).
 
-### 5-4. Colab에서 꼭 알아 둘 것
+### 5-5. Colab에서 꼭 알아 둘 것
 
 - **런타임이 끊기면 `/content`가 지워진다.** 올리지 않은 코드는 사라지므로 작업 단위마다 마지막 셀로 올린다. Drive에 저장한 데이터·모델은 남는다.
 - 데이터·모델 파일은 `paths.processed_dir()`, `paths.models_dir()`처럼 **`paths`가 알려 주는 Drive 위치**에 저장한다. 경로를 직접 적지 않는다.
 - 5MB보다 큰 파일은 `colab.push()`가 올리지 않는다. Drive에 둔다.
 - GPU가 필요하면 **런타임 → 런타임 유형 변경 → GPU**.
 - **파일 → Drive에 사본 저장**은 쓰지 않는다. 노트북은 `colab.push()`로 GitHub에 저장한다.
+- Drive의 `code/` 폴더는 보기용이다. 거기 있는 노트북을 열어 고치지 않는다 (다음 갱신 때 덮임).
 
 ## 6. 내 PC(로컬 폴더) 연결 (선택)
 
@@ -182,6 +196,12 @@ $env:ML_TEAMWORK_DIR = "G:\내 드라이브\ML_TeamWork"      # PowerShell, 이 
 
 이제 `paths.data_dir()` 등이 Drive를 가리킨다. 경로를 코드에 직접 적지 않는다. AI Hub 다운로드는 [데이터 출처 문서](DATA_SOURCES.md)의 명령을 이 상태에서 실행한다.
 
+Drive의 `code/` 사본을 PC에서 바로 최신 main으로 맞추려면 같은 창에서 실행한다 (Colab 노트북을 실행해도 자동으로 맞춰진다).
+
+```bash
+python -m src.common.drive_sync
+```
+
 ### 6-5. 로컬에서 브랜치 작업
 
 명령과 순서는 [협업 규칙 3절](COLLABORATION.md#3-작업-순서)을 따른다. Colab과 로컬을 번갈아 써도 된다. **바꾸기 전에 받고(pull), 끝나면 올린다(push)** 만 지키면 GitHub를 통해 맞춰진다.
@@ -191,7 +211,8 @@ $env:ML_TEAMWORK_DIR = "G:\내 드라이브\ML_TeamWork"      # PowerShell, 이 
 - 토큰·API 키를 노트북 셀·코드·문서·카톡에 붙여 넣기
 - `main`에 직접 커밋·푸시, `git push --force`
 - 데이터·모델 파일을 Git에 올리기, 원본(`data/raw/`)을 수정하기
-- Drive 안에 저장소를 clone하기, 다른 모델의 브랜치·파일을 고치기
+- Drive 안에 저장소를 clone하기, Drive의 `code/` 사본을 고치기
+- `common`·`preprocess`·`model/<모델명>` 외의 브랜치 만들기, 다른 모델의 브랜치·파일을 고치기
 - AI Hub 해외 다운로드 제한을 VPN 등으로 우회하기
 
 ## 8. 자주 나는 문제
@@ -199,9 +220,11 @@ $env:ML_TEAMWORK_DIR = "G:\내 드라이브\ML_TeamWork"      # PowerShell, 이 
 | 메시지·증상 | 원인과 해결 |
 | --- | --- |
 | `Drive에 ... ML_TeamWork 폴더가 없습니다` | 2절의 바로가기를 **내 드라이브 바로 아래**에 추가했는지 확인 |
-| `GitHub에 'model/...' 브랜치가 없습니다` | 이름 오타 확인. 처음 만드는 거면 `NEW_BRANCH = True` |
-| `'model/...'는 이미 GitHub에 있습니다` | 이미 있는 브랜치. `NEW_BRANCH = False`로 이어서 작업 |
-| `브랜치 이름은 '<종류>/<이름>' 형식이어야 합니다` | 예: `model/knn`. `/` 뒤는 영어 소문자·숫자·`-`만 |
+| `GitHub에 'model/...' 브랜치가 없습니다` | 이름 오타 확인. 새 모델을 추가하는 거면 `NEW_BRANCH = True` |
+| `'model/...'는 이미 GitHub에 있습니다` | 이미 있는 모델. `NEW_BRANCH = False`로 그 브랜치에서 이어서 작업 |
+| `쓸 수 있는 브랜치는 common, preprocess, model/<모델명> 뿐입니다` | 문서·공통은 `common`, 전처리는 `preprocess`. 새 브랜치는 새 모델만 |
+| `새 브랜치는 새 모델(model/<모델명>)을 추가할 때만 만듭니다` | `common`·`preprocess`는 이미 있으니 `NEW_BRANCH = False` |
+| `모델 브랜치는 'model/' 뒤에 영어 소문자...` / `노트북 파일 이름은 영어 소문자...` | 예: `model/knn`, `notebooks/1_preprocess/crop.ipynb`. 한글·대문자·띄어쓰기 금지 |
 | `main에는 직접 올리지 않습니다` | 첫 셀의 `BRANCH`를 작업 브랜치로 바꾸고 첫 셀부터 다시 |
 | `GitHub 토큰이 잘못됐거나 만료됐습니다` | 3절로 새 토큰을 만들어 Secrets 값을 바꿈 |
 | `이 토큰으로 ... 저장소를 볼 수 없습니다` / `쓰기 권한이 없습니다` | 초대 수락 여부, 토큰의 Resource owner(`2026-2nd`)·저장소 선택·Contents 권한 확인. 승인 대기면 팀장에게 |

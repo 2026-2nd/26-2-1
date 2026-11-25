@@ -1,17 +1,21 @@
 """Colab 노트북에서 Google Drive·GitHub를 연결하고, 작업을 GitHub 브랜치에 올리는 도우미.
 
-노트북 첫 셀   colab.setup("model/knn", new_branch=True)   # Drive 연결 + 브랜치 준비
+노트북 첫 셀   colab.setup("model/knn", new_branch=True)   # Drive 연결 + 브랜치 준비 + Drive의 code/ 갱신
 노트북 마지막 셀 colab.push("knn: k 값 비교 추가")           # 노트북·코드 변경을 브랜치에 올림
 그 밖에         colab.branches()                            # GitHub에 있는 브랜치 목록
                colab.check_github()                        # 토큰이 제대로 설정됐는지 확인
 
 규칙 (docs/COLLABORATION.md):
   - main에는 직접 올리지 않는다. push()는 main에서 멈춘다.
-  - 브랜치 이름은 `<종류>/<이름>` 이다. 새 모델은 반드시 새 `model/<모델명>` 브랜치.
+  - 브랜치는 세 종류뿐이다.
+      common             문서·공통 코드·설정·오류 수정 (모두 함께 쓰는 브랜치 하나)
+      preprocess         전처리 (모두 함께 쓰는 브랜치 하나)
+      model/<모델명>      모델마다 하나. 새 모델을 추가할 때만 새로 만들고, 수정도 이 브랜치에서.
   - 데이터·모델 파일은 Drive에 두고 Git에 올리지 않는다. 큰 파일(5MB 초과)은 push()가 거부한다.
 
 코드는 런타임의 `/content/26-2-1`에 GitHub에서 새로 받은 복사본이다. 런타임이 끝나면 사라지므로
-고친 내용은 push()로 올려야 남는다. Drive(`MyDrive/ML_TeamWork`)에는 데이터·모델·출력물만 둔다.
+고친 내용은 push()로 올려야 남는다. Drive(`MyDrive/ML_TeamWork`)에는 데이터·모델·출력물과
+main 코드의 보기용 사본(`code/`, src/common/drive_sync.py)을 둔다.
 """
 from __future__ import annotations
 
@@ -33,15 +37,14 @@ REPO_URL = f"https://github.com/{REPO_SLUG}.git"
 MAIN = "main"
 MAX_FILE_MB = 5
 
-# 브랜치 종류 → 설명, 이 종류의 노트북을 저장할 폴더
-BRANCH_KINDS = {
-    "model": ("모델 하나 (예: model/knn). 모델마다 브랜치 하나", "notebooks/2_models"),
-    "preprocess": ("전처리 작업 (예: preprocess/crop)", "notebooks/1_preprocess"),
-    "setup": ("Colab·Drive·Git 연결, 환경", None),
-    "docs": ("문서만 수정", None),
-    "fix": ("이미 있는 코드의 오류 수정", None),
+# 모두 함께 쓰는 고정 브랜치 → 설명
+SHARED_BRANCHES = {
+    "common": "문서·공통 코드·설정·오류 수정",
+    "preprocess": "전처리 (모든 전처리 작업)",
 }
-_NAME_RE = re.compile(r"^[a-z0-9][a-z0-9._-]*$")
+MODEL_PREFIX = "model/"
+MODEL_NOTEBOOK_DIR = "notebooks/2_models"
+_NAME_RE = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
 
 _state: dict = {"notebook": None}
 
@@ -58,24 +61,27 @@ def in_colab() -> bool:
         return False
 
 
+_ALLOWED = "common, preprocess, model/<모델명> (예: model/knn)"
+
+
 def branch_problem(name: str) -> str | None:
     """작업 브랜치로 쓸 수 없는 이름이면 이유를, 괜찮으면 None을 돌려준다."""
     if name == MAIN:
-        return "main에는 직접 올리지 않습니다. 작업 브랜치(예: model/knn)를 쓰세요."
-    kind, sep, rest = name.partition("/")
-    if not sep or kind not in BRANCH_KINDS:
-        kinds = ", ".join(f"{k}/" for k in BRANCH_KINDS)
-        return f"브랜치 이름은 '<종류>/<이름>' 형식이어야 합니다. 종류: {kinds} (예: model/knn)"
-    if not _NAME_RE.match(rest):
-        return "'/' 뒤에는 영어 소문자·숫자·'-'·'_'·'.'만 씁니다 (예: model/knn, preprocess/crop-224)."
-    return None
+        return f"main에는 직접 올리지 않습니다. 작업 브랜치를 쓰세요: {_ALLOWED}"
+    if name in SHARED_BRANCHES:
+        return None
+    if name.startswith(MODEL_PREFIX):
+        if _NAME_RE.match(name[len(MODEL_PREFIX):]):
+            return None
+        return "모델 브랜치는 'model/' 뒤에 영어 소문자·숫자·'-'·'_'만 씁니다 (예: model/knn, model/random_forest)."
+    return f"쓸 수 있는 브랜치는 {_ALLOWED} 뿐입니다. 문서·전처리용 브랜치를 새로 만들지 않습니다."
 
 
 def default_notebook(branch: str) -> str | None:
-    """model/knn → notebooks/2_models/knn.ipynb. 노트북 폴더가 없는 종류는 None."""
-    kind, _, rest = branch.partition("/")
-    folder = BRANCH_KINDS.get(kind, (None, None))[1]
-    return f"{folder}/{rest}.ipynb" if folder and rest else None
+    """model/knn → notebooks/2_models/knn.ipynb. 공용 브랜치는 노트북 이름을 따로 정해야 하므로 None."""
+    if branch.startswith(MODEL_PREFIX):
+        return f"{MODEL_NOTEBOOK_DIR}/{branch[len(MODEL_PREFIX):]}.ipynb"
+    return None
 
 
 def notebook_problem(path: str) -> str | None:
@@ -83,7 +89,9 @@ def notebook_problem(path: str) -> str | None:
     if p.is_absolute() or ".." in p.parts or p.parts[:1] != ("notebooks",) or p.suffix != ".ipynb":
         return "노트북은 'notebooks/.../이름.ipynb' 형태의 저장소 안 경로로 지정합니다."
     if p.name.startswith("_template"):
-        return "템플릿 파일은 덮어쓰지 않습니다. 새 이름을 지정하세요 (예: notebooks/2_models/knn.ipynb)."
+        return "템플릿 파일은 덮어쓰지 않습니다. 새 이름을 지정하세요 (예: notebooks/1_preprocess/crop.ipynb)."
+    if not _NAME_RE.match(p.stem):
+        return "노트북 파일 이름은 영어 소문자·숫자·'-'·'_'로 씁니다 (예: notebooks/1_preprocess/crop.ipynb)."
     return None
 
 
@@ -131,10 +139,10 @@ def setup(branch: str = MAIN, new_branch: bool = False, notebook: str | None = N
           drive_dir: str | None = None) -> None:
     """Drive를 연결하고 GitHub 브랜치를 준비한다.
 
-    branch      작업할 브랜치. 읽기만 할 때는 "main".
-    new_branch  GitHub에 아직 없는 브랜치를 main에서 새로 만들 때 True.
-    notebook    push()가 이 노트북을 저장할 위치. 생략하면 브랜치 이름으로 정한다
-                (model/knn → notebooks/2_models/knn.ipynb).
+    branch      작업할 브랜치: "common", "preprocess", "model/<모델명>". 읽기만 할 때는 "main".
+    new_branch  새 모델의 브랜치를 main에서 처음 만들 때만 True.
+    notebook    push()가 이 노트북을 저장할 위치. 모델 브랜치는 생략하면
+                notebooks/2_models/<모델명>.ipynb. 공용 브랜치(common, preprocess)는 직접 지정한다.
     drive_dir   Drive의 프로젝트 폴더. 기본 /content/drive/MyDrive/ML_TeamWork
     """
     if not in_colab():
@@ -158,6 +166,14 @@ def setup(branch: str = MAIN, new_branch: bool = False, notebook: str | None = N
     _prepare_branch(branch, new_branch)
     _forget_src_modules()
 
+    print("\n③ Drive의 code/ (main 보기용 사본) 갱신")
+    try:
+        from . import drive_sync
+        r = drive_sync.sync(fetch=False)
+        print(f"  {r['dest']}  (바뀐 파일 {r['copied']}개, 지운 파일 {r['deleted']}개)")
+    except Exception as e:   # 보기 권한만 있거나 Drive 오류여도 작업은 계속한다
+        print(f"  ⚠️ 갱신하지 못했습니다 ({type(e).__name__}: {e}). 작업에는 영향이 없습니다.")
+
     nb = notebook or (default_notebook(branch) if branch != MAIN else None)
     if nb and (problem := notebook_problem(nb)):
         raise ColabError(problem)
@@ -169,6 +185,8 @@ def setup(branch: str = MAIN, new_branch: bool = False, notebook: str | None = N
         print("  main은 읽기 전용입니다. 고친 내용을 올리려면 작업 브랜치로 바꾸세요.")
     elif nb:
         print(f"  마지막 셀의 colab.push()가 이 노트북을 {nb} 로 저장합니다.")
+    else:
+        print("  NOTEBOOK을 지정하지 않아 마지막 셀은 코드 변경만 올립니다 (노트북은 저장하지 않음).")
     print("\n준비 완료. 아래 셀을 위에서부터 차례로 실행하세요.")
 
 
@@ -180,13 +198,18 @@ def _prepare_branch(branch: str, new_branch: bool) -> None:
 
     if branch != MAIN and (problem := branch_problem(branch)):
         raise ColabError(problem)
+    if new_branch and not branch.startswith(MODEL_PREFIX):
+        raise ColabError("새 브랜치는 새 모델(model/<모델명>)을 추가할 때만 만듭니다. "
+                         f"'{branch}'는 함께 쓰는 브랜치이니 NEW_BRANCH = False 로 바꾸세요.")
     if new_branch and on_remote:
-        raise ColabError(f"'{branch}'는 이미 GitHub에 있습니다. NEW_BRANCH = False 로 바꾸고 다시 실행하세요.")
+        raise ColabError(f"'{branch}'는 이미 GitHub에 있습니다. 이 모델의 수정은 그 브랜치에서 합니다.\n"
+                         "  NEW_BRANCH = False 로 바꾸고 다시 실행하세요.")
     if not new_branch and not on_remote and not on_local:
-        similar = [b for b in remote_branches() if b.split("/")[0] == branch.split("/")[0]]
-        hint = f"\n  같은 종류의 브랜치: {', '.join(similar)}" if similar else ""
-        raise ColabError(f"GitHub에 '{branch}' 브랜치가 없습니다. 이름을 확인하세요.{hint}\n"
-                         "  새로 만들 거라면 NEW_BRANCH = True 로 바꾸고 다시 실행하세요.")
+        models = [b for b in remote_branches() if b.startswith(MODEL_PREFIX)]
+        hint = f"\n  지금 있는 모델 브랜치: {', '.join(models)}" if models else ""
+        new_hint = ("\n  새 모델을 추가하는 거라면 NEW_BRANCH = True 로 바꾸고 다시 실행하세요."
+                    if branch.startswith(MODEL_PREFIX) else "")
+        raise ColabError(f"GitHub에 '{branch}' 브랜치가 없습니다. 이름을 확인하세요.{hint}{new_hint}")
 
     if current != branch:
         if dirty := _dirty_files():
@@ -223,16 +246,19 @@ def remote_branches() -> list[str]:
 
 
 def branches() -> None:
-    """GitHub의 브랜치를 종류별로 보여 준다. 새 브랜치를 만들기 전에 겹치는 이름이 없는지 확인한다."""
+    """GitHub의 브랜치를 보여 준다. 새 모델 브랜치를 만들기 전에 같은 모델이 이미 있는지 확인한다."""
     _git("fetch", "--prune", "origin")
-    groups: dict[str, list[str]] = {}
-    for b in remote_branches():
-        groups.setdefault(b.split("/")[0] if "/" in b else b, []).append(b)
-    for kind, names in sorted(groups.items()):
-        desc = BRANCH_KINDS.get(kind, ("",))[0]
-        print(f"[{kind}] {desc}")
-        for n in names:
-            print(f"   {n}")
+    names = remote_branches()
+    print("[main] 완성본 (PR로만 합침)")
+    for b, desc in SHARED_BRANCHES.items():
+        print(f"[{b}] {desc}{'' if b in names else '  ⚠️ GitHub에 없음'}")
+    models = [b for b in names if b.startswith(MODEL_PREFIX)]
+    print(f"[model/] 모델마다 하나 — {len(models)}개")
+    for b in models:
+        print(f"   {b}")
+    others = [b for b in names if b != MAIN and b not in SHARED_BRANCHES and b not in models]
+    if others:
+        print("[규칙 밖] 정리 대상: " + ", ".join(others))
 
 
 # ── GitHub 토큰 ───────────────────────────────────────────────────────
