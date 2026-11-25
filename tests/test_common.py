@@ -238,6 +238,19 @@ class DriveSyncFromGitTest(GitFlowTest):
             self.assertTrue((code / "README.md").is_file())
             self.assertFalse((code / "knn.py").exists())
             self.assertTrue((code / drive_sync.NOTICE).is_file())
+            self.assertFalse((Path(drive) / drive_sync.START_NAME).exists())   # main에 원본이 없으면 만들지 않음
+
+    def test_start_doc_is_copied_to_drive_root(self):
+        (self.seed / "docs").mkdir()
+        (self.seed / drive_sync.START_SRC).write_text("시작하기 v1\n", encoding="utf-8")
+        _run(self.seed, "add", "docs")
+        _run(self.seed, "commit", "-q", "-m", "start doc")
+        _run(self.seed, "push", "-q", "origin", "main")
+        with tempfile.TemporaryDirectory() as drive, mock.patch.dict(os.environ, {"ML_TEAMWORK_DIR": drive}):
+            drive_sync.sync()
+            start = Path(drive) / drive_sync.START_NAME
+            self.assertEqual(start.read_text(encoding="utf-8"), "시작하기 v1\n")
+            self.assertTrue((Path(drive) / "code" / drive_sync.START_SRC).is_file())
 
 
 class GitignoreTest(unittest.TestCase):

@@ -17,6 +17,7 @@
      Drive 연결 │ 데이터 읽기·쓰기          Drive 데스크톱 │ (선택)
               ┌▼─────────────────────────────────────▼┐
               │ Google Drive  내 드라이브/ML_TeamWork/   │
+              │   0_시작하기.md     처음 읽는 안내문       │
               │   data/raw/        원본 데이터 (수정 금지) │
               │   data/processed/  전처리 결과           │
               │   models/          학습한 모델 파일       │

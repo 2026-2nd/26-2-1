@@ -23,6 +23,7 @@
 | [docs/ML_WORKFLOW.md](docs/ML_WORKFLOW.md) | 데이터 확보부터 최종 평가까지의 실험 절차 |
 | [docs/CONTRACTS.md](docs/CONTRACTS.md) | 데이터·분할·지표·결과 기록의 공통 기준 |
 | [docs/DATA_SOURCES.md](docs/DATA_SOURCES.md) | 데이터 출처·이용 조건·다운로드 기록 |
+| [docs/DRIVE_START.md](docs/DRIVE_START.md) | Drive `ML_TeamWork/0_시작하기.md`로 복사되는 첫 안내문 (무엇을 어떤 순서로 읽고 연결할지) |
 
 ## 3. 폴더
 
@@ -47,6 +48,7 @@
   .github/pull_request_template.md
 
 Google Drive  내 드라이브/ML_TeamWork/   (Git 제외)
+  0_시작하기.md    # 팀원이 처음 여는 안내문 (docs/DRIVE_START.md를 drive_sync가 복사)
   data/raw/        # 원본, 직접 수정하지 않음
   data/processed/  # 코드로 다시 만드는 전처리 결과
   models/          # 학습한 모델 파일
