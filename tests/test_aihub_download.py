@@ -1,4 +1,4 @@
-"""src/aihub_download.py 단위 테스트 (네트워크 없이 실행).
+"""src/preprocess/aihub_download.py 단위 테스트 (네트워크 없이 실행).
 
 실행: python -m unittest discover -s tests -v
 """
@@ -11,7 +11,7 @@ import zipfile
 from pathlib import Path
 from unittest import mock
 
-from src import aihub_download as ad
+from src.preprocess import aihub_download as ad
 
 CONFIG = {
     "dataset_key": "71385",
@@ -123,7 +123,47 @@ class ResumeTest(unittest.TestCase):
                 dl.assert_not_called()
 
 
+class RetryTest(unittest.TestCase):
+    def test_dropped_connection_is_retried_from_scratch(self):
+        import http.client
+        calls = []
+
+        def flaky(url, key, dest):
+            calls.append(1)
+            if len(calls) < 3:
+                raise http.client.IncompleteRead(b"x")
+            dest.write_bytes(b"done")
+
+        with tempfile.TemporaryDirectory() as d, mock.patch.object(ad, "_download_once", flaky):
+            dest = Path(d) / "download.tar"
+            ad._download_tar("71385", [1], "k", dest, retries=5, wait=0)
+            self.assertEqual(len(calls), 3)
+            self.assertEqual(dest.read_bytes(), b"done")
+
+    def test_gives_up_after_retries_and_auth_errors_are_not_retried(self):
+        import http.client
+        with mock.patch.object(ad, "_download_once", side_effect=http.client.IncompleteRead(b"")) as m:
+            with self.assertRaises(ad.AIHubError):
+                ad._download_tar("71385", [1], "k", Path("unused"), retries=3, wait=0)
+            self.assertEqual(m.call_count, 3)
+        with mock.patch.object(ad, "_download_once", side_effect=ad.AIHubError("인증실패")) as m:
+            with self.assertRaises(ad.AIHubError):
+                ad._download_tar("71385", [1], "k", Path("unused"), retries=3, wait=0)
+            self.assertEqual(m.call_count, 1)
+
+
 class ApiKeyTest(unittest.TestCase):
+    def test_key_is_extracted_from_surrounding_text(self):
+        key = "ABCDEF01-2345-6789-ABCD-EF0123456789"
+        for raw in (key, f"  {key}\n", f"키: {key}", f"ㅇㅇㅇ{key}"):
+            with mock.patch.dict(os.environ, {"AIHUB_APIKEY": raw}):
+                self.assertEqual(ad.get_api_key(), key)
+
+    def test_non_ascii_key_gives_clear_error(self):
+        with mock.patch.dict(os.environ, {"AIHUB_APIKEY": "ㅇㅇㅇ1234"}):
+            with self.assertRaisesRegex(ad.AIHubError, "한글"):
+                ad.get_api_key()
+
     def test_missing_key_raises(self):
         with mock.patch.dict(os.environ, {"AIHUB_APIKEY": ""}):
             with self.assertRaises(ad.AIHubError):

@@ -1,17 +1,20 @@
 """AI Hub 데이터 다운로드·압축 해제 도구 (표준 라이브러리만 사용).
 
 AI Hub 공식 `aihubshell` v0.6 (https://api.aihub.or.kr/api/aihubshell.do)과 같은 API를
-호출한다. bash가 없는 Windows나 Colab의 Python 코드에서도 쓸 수 있다. 공식 셸이 쓰는
+호출한다. bash가 없는 Windows나 Colab의 Python 코드에서도 쓸 수 있다.
+AI Hub 서버는 이어받기(Range)를 지원하지 않아, 연결이 끊기면 그 파일을 처음부터 다시 받는다(최대 10번). 공식 셸이 쓰는
 엔드포인트가 바뀌면 `DOWN_URL`을 셸 스크립트에 맞춰 고친다.
 
 사용 예 (저장소 루트에서 실행):
-    python -m src.aihub_download list
-    python -m src.aihub_download download --preset smoke_test
-    python -m src.aihub_download download --filekey 514447,514448
-    python -m src.aihub_download extract --pattern "*실내형분류기*" --dest /content/data/aihub_71385
+    python -m src.preprocess.aihub_download list
+    python -m src.preprocess.aihub_download download --preset smoke_test
+    python -m src.preprocess.aihub_download download --filekey 514447,514448
+    python -m src.preprocess.aihub_download extract --pattern "*실내형분류기*" --dest <풀 폴더>
+
+AI Hub는 해외 IP(Colab 포함)의 다운로드를 막으므로 다운로드는 국내 PC에서 실행한다.
 
 API 키는 환경변수 `AIHUB_APIKEY`로만 받는다. 코드·노트북·커밋에 키를 적지 않는다.
-데이터 위치는 환경변수 `ML_TEAMWORK_DATA`로 정하고, 없으면 저장소의 `data/`를 쓴다.
+데이터 위치는 src/common/paths.py의 data_dir()를 따른다 (Drive에 받으려면 ML_TEAMWORK_DIR="G:/내 드라이브/ML_TeamWork" 처럼 지정).
 이용 조건은 docs/DATA_SOURCES.md를 따른다.
 """
 from __future__ import annotations
@@ -21,6 +24,7 @@ import csv
 import datetime as _dt
 import fnmatch
 import hashlib
+import http.client
 import json
 import os
 import re
@@ -28,17 +32,19 @@ import shutil
 import sys
 import tarfile
 import tempfile
+import time
 import urllib.error
 import urllib.request
 import zipfile
 from pathlib import Path
 
+from src.common import paths
+
 BASE_URL = "https://api.aihub.or.kr"
 DOWN_URL = BASE_URL + "/down/0.6/{dataset_key}.do"
 INFO_URL = BASE_URL + "/info/{dataset_key}.do"
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_CONFIG = REPO_ROOT / "configs" / "aihub_71385.json"
+DEFAULT_CONFIG = paths.configs_dir() / "aihub_71385.json"
 MANIFEST_NAME = "MANIFEST.csv"
 MANIFEST_FIELDS = ["downloaded_at", "filekey", "path", "size_bytes", "sha256"]
 CHUNK = 1024 * 1024
@@ -55,7 +61,7 @@ def load_config(path: Path = DEFAULT_CONFIG) -> dict:
 
 
 def data_root() -> Path:
-    return Path(os.environ.get("ML_TEAMWORK_DATA") or REPO_ROOT / "data")
+    return paths.data_dir()
 
 
 def raw_dir(config: dict) -> Path:
@@ -78,11 +84,21 @@ def resolve_filekeys(config: dict, presets: list[str], filekeys: list[str]) -> l
     return ordered
 
 
+_KEY_RE = re.compile(r"[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}")
+
+
 def get_api_key() -> str:
-    key = os.environ.get("AIHUB_APIKEY", "").strip()
-    if not key:
+    """AIHUB_APIKEY에서 키를 꺼낸다. 앞뒤에 '키:'나 한글 등이 섞여 있으면 키 형식 부분만 쓴다."""
+    raw = os.environ.get("AIHUB_APIKEY", "").strip()
+    if not raw:
         raise AIHubError("환경변수 AIHUB_APIKEY가 없습니다. Colab은 Secrets에, 로컬은 환경변수에 등록하세요.")
-    return key
+    m = _KEY_RE.search(raw)
+    if m:
+        return m.group(0)
+    if not raw.isascii():
+        raise AIHubError("API 키에 한글 등 영문·숫자가 아닌 문자가 들어 있습니다. 한/영 키를 영문으로 두고 "
+                         "키(예: XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX)만 다시 붙여 넣으세요.")
+    return raw
 
 
 # ── API 호출 ─────────────────────────────────────────────────────────
@@ -98,36 +114,54 @@ def fetch_file_tree(dataset_key: str) -> str:
         raise AIHubError(f"파일 목록 조회 실패 HTTP {e.code}") from None
 
 
-def _download_tar(dataset_key: str, filekeys: list[int], api_key: str, dest: Path) -> None:
-    """공식 셸의 `curl -L -C - -H "apikey:..." "$DOWN_URL?fileSn=..."`과 같은 요청. 이어받기를 지원한다."""
-    url = DOWN_URL.format(dataset_key=dataset_key) + "?fileSn=" + ",".join(map(str, filekeys))
-    start = dest.stat().st_size if dest.exists() else 0
-    headers = {"apikey": api_key}
-    if start:
-        headers["Range"] = f"bytes={start}-"
-    req = urllib.request.Request(url, headers=headers)
+RETRIES = 10
+# 연결이 중간에 끊겼을 때 다시 시도할 오류 (HTTP 오류 응답은 제외)
+_TRANSIENT = (http.client.IncompleteRead, http.client.RemoteDisconnected, ConnectionError, TimeoutError,
+              urllib.error.URLError, OSError)
+
+
+def _download_once(url: str, api_key: str, dest: Path) -> None:
+    """공식 셸의 `curl -L -H "apikey:..." "$DOWN_URL?fileSn=..."`과 같은 요청.
+
+    AI Hub 서버는 Range(이어받기) 요청을 무시하고 항상 처음부터 보낸다 (2026-11-23 확인). 그래서 매번 새로 쓴다.
+    """
+    req = urllib.request.Request(url, headers={"apikey": api_key})
     try:
         resp = urllib.request.urlopen(req, timeout=120)
     except urllib.error.HTTPError as e:
         body = e.read().decode("utf-8", errors="replace").strip()
-        if e.code == 416 and start:  # 이미 끝까지 받은 상태
-            return
         hint = ""
         if "인증" in body or "권한" in body:
             hint = " → AI Hub에서 이 데이터셋의 다운로드 신청이 승인됐는지, API 키가 맞는지 확인하세요."
         raise AIHubError(f"다운로드 실패 HTTP {e.code}: {body}{hint}") from None
-    with resp:
-        mode = "ab" if (start and resp.status == 206) else "wb"
-        total = resp.headers.get("Content-Length")
-        total = int(total) + (start if mode == "ab" else 0) if total else None
-        done = start if mode == "ab" else 0
-        with open(dest, mode) as f:
-            while chunk := resp.read(CHUNK):
-                f.write(chunk)
-                done += len(chunk)
-                if total:
-                    print(f"\r  {done / 2**20:,.0f} / {total / 2**20:,.0f} MB", end="", flush=True)
-        print()
+    with resp, open(dest, "wb") as f:
+        done, last = 0, 0
+        while chunk := resp.read(CHUNK):
+            f.write(chunk)
+            done += len(chunk)
+            if done - last >= 256 * 2**20:   # 256MB마다 진행 상황 출력
+                print(f"  {done / 2**30:,.2f} GB", flush=True)
+                last = done
+
+
+def _download_tar(dataset_key: str, filekeys: list[int], api_key: str, dest: Path,
+                  retries: int = RETRIES, wait: float = 10.0) -> None:
+    """연결이 끊기면 처음부터 다시 받는다 (최대 retries회, 대기 시간은 점점 늘림)."""
+    url = DOWN_URL.format(dataset_key=dataset_key) + "?fileSn=" + ",".join(map(str, filekeys))
+    for attempt in range(1, retries + 1):
+        try:
+            _download_once(url, api_key, dest)
+            return
+        except AIHubError:
+            raise
+        except _TRANSIENT as e:
+            size = dest.stat().st_size / 2**20 if dest.exists() else 0
+            if attempt == retries:
+                raise AIHubError(f"연결이 {retries}번 끊겨 중단했습니다 (마지막 오류: {e!r})") from None
+            delay = min(wait * 2 ** (attempt - 1), 300)
+            print(f"  ⚠️ 연결 끊김 ({size:,.0f} MB에서, {type(e).__name__}). {delay:.0f}초 후 처음부터 다시 받습니다 "
+                  f"({attempt}/{retries - 1})", flush=True)
+            time.sleep(delay)
 
 
 # ── 압축 처리 ────────────────────────────────────────────────────────

@@ -1,7 +1,7 @@
 # 데이터·모델·결과물 (원본은 AI Hub 약관상 공개 저장소에 올리지 않음 — docs/DATA_SOURCES.md)
-data/
-models/
-outputs/
+/data/
+/models/
+/outputs/
 *.zip
 *.tar
 *.part[0-9]*
@@ -26,3 +26,4 @@ venv/
 Thumbs.db
 .vscode/
 .idea/
+desktop.ini
