@@ -5,6 +5,8 @@ Colab: colab.setup()이 첫 셀에서 자동으로 실행한다.
     $env:ML_TEAMWORK_DIR = "G:\\내 드라이브\\ML_TeamWork"     # PowerShell
     python -m src.common.drive_sync
 
+main의 docs/DRIVE_START.md는 Drive `ML_TeamWork/0_시작하기.md`(팀원이 처음 여는 안내문)로도 복사한다.
+
 `code/`는 **보기용**이다. 여기서 고친 내용은 다음 갱신 때 main 내용으로 덮이고 GitHub에도 올라가지 않는다.
 코드는 Colab 노트북(colab.push)이나 내 PC의 git으로 고친다 (docs/SETUP_GUIDE.md).
 """
@@ -22,6 +24,8 @@ from . import paths
 
 REF = "origin/main"
 NOTICE = "_보기용_사본_여기서_고치지_마세요.txt"
+START_SRC = "docs/DRIVE_START.md"   # 저장소의 원본
+START_NAME = "0_시작하기.md"         # Drive ML_TeamWork/ 맨 위에 두는 첫 안내문
 KEEP = {NOTICE, "desktop.ini"}   # 지우지 않는 파일 (안내문, Windows Drive가 만드는 파일)
 
 
@@ -74,6 +78,11 @@ def sync(ref: str = REF, dest: Path | None = None, fetch: bool = True) -> dict:
         except TypeError:   # filter를 지원하지 않는 오래된 Python
             tar.extractall(tmp)
         result = sync_tree(Path(tmp), dest)
+        start = Path(tmp) / START_SRC
+        if start.is_file():   # 첫 안내문은 code/ 바깥, 프로젝트 폴더 맨 위에 둔다
+            target = dest.parent / START_NAME
+            if not target.is_file() or target.read_bytes() != start.read_bytes():
+                shutil.copyfile(start, target)
     notice = dest / NOTICE
     text = (f"이 폴더는 GitHub 2026-2nd/26-2-1 의 {ref} ({sha}) 보기용 사본입니다.\n"
             "여기서 고친 내용은 다음 갱신 때 덮이고 GitHub에 올라가지 않습니다.\n"
